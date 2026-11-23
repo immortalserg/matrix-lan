@@ -1,0 +1,27 @@
+{
+  "id": "matrix-imo",
+  "url": "http://matrix-imo:29390",
+  "as_token": "__SECRET_MATRIX_IMO_AS_TOKEN__",
+  "hs_token": "__SECRET_MATRIX_IMO_HS_TOKEN__",
+  "sender_localpart": "imobot",
+  "rate_limited": false,
+  "namespaces": {
+    "users": [
+      {
+        "exclusive": true,
+        "regex": "^@imo_[0-9a-f]+:__SERVER_RE__$"
+      },
+      {
+        "exclusive": true,
+        "regex": "^@imobot:__SERVER_RE__$"
+      }
+    ],
+    "aliases": [
+      {
+        "exclusive": true,
+        "regex": "^#imo_[0-9a-f]+:__SERVER_RE__$"
+      }
+    ],
+    "rooms": []
+  }
+}

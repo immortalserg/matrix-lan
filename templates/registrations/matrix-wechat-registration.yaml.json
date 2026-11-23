@@ -1,0 +1,27 @@
+{
+  "as_token": "__SECRET_MATRIX_WECHAT_AS_TOKEN__",
+  "hs_token": "__SECRET_MATRIX_WECHAT_HS_TOKEN__",
+  "id": "matrix-wechat",
+  "namespaces": {
+    "aliases": [
+      {
+        "exclusive": true,
+        "regex": "^#wechat_(account|portal)_[0-9a-f]+:__SERVER_RE__$"
+      }
+    ],
+    "rooms": [],
+    "users": [
+      {
+        "exclusive": true,
+        "regex": "^@wechat_.*:__SERVER_RE__$"
+      },
+      {
+        "exclusive": true,
+        "regex": "^@wechatbot:__SERVER_RE__$"
+      }
+    ]
+  },
+  "rate_limited": false,
+  "sender_localpart": "wechatbot",
+  "url": "http://wechat-native:29391"
+}

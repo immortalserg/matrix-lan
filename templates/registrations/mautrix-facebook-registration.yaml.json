@@ -1,0 +1,22 @@
+{
+  "id": "facebook",
+  "url": "http://mautrix-facebook:29319",
+  "as_token": "__SECRET_FACEBOOK_AS_TOKEN__",
+  "hs_token": "__SECRET_FACEBOOK_HS_TOKEN__",
+  "sender_localpart": "xXR3ELuHRcUjgM4VM9SF9x3s3VRzXYHi",
+  "rate_limited": false,
+  "namespaces": {
+    "users": [
+      {
+        "regex": "^@facebookbot:__SERVER_RE__$",
+        "exclusive": true
+      },
+      {
+        "regex": "^@facebook_.*:__SERVER_RE__$",
+        "exclusive": true
+      }
+    ]
+  },
+  "de.sorunome.msc2409.push_ephemeral": true,
+  "receive_ephemeral": true
+}

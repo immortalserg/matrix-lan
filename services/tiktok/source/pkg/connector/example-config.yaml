@@ -1,0 +1,28 @@
+# TikTok-specific configuration for the matrix-tiktok bridge.
+
+# How often (in seconds) to poll TikTok for new messages.
+# Lower values increase responsiveness but may trigger rate limits.
+poll_interval_seconds: 10
+
+# Optional: override the TikTok API base URL (useful for testing or alternative endpoints).
+# Leave empty to use the default.
+api_base_url: ""
+
+# Optional: a custom User-Agent string to send with TikTok API requests.
+# Leave empty to use the default built into the TikTok PoC client.
+user_agent: ""
+# Default proxy (http/https/socks5) for TikTok traffic. A per-login
+# proxy_url in the login metadata overrides this. Empty means no proxy.
+proxy: ""
+
+# Maximum REST history pages (each up to ~20 messages) per conversation on connect.
+# Zero: full fetch up to the safety cap for conversations with no checkpoint; a small default for others.
+initial_backfill_max_pages: 0
+
+# Optional cap on how many inbox threads get a history fetch per connect (first N from inbox).
+# Zero means all conversations.
+initial_backfill_max_conversations: 0
+
+# For portals without a stored checkpoint, optionally skip messages older than this many hours.
+# Zero (or omit) means no time limit — backfill until TikTok history is exhausted (subject to max pages).
+initial_backfill_lookback_hours: 0

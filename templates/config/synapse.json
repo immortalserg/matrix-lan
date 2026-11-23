@@ -1,0 +1,92 @@
+{
+  "server_name": "__SERVER_NAME__",
+  "pid_file": "/data/homeserver.pid",
+  "listeners": [
+    {
+      "port": 8008,
+      "tls": false,
+      "type": "http",
+      "x_forwarded": true,
+      "bind_addresses": [
+        "0.0.0.0"
+      ],
+      "resources": [
+        {
+          "names": [
+            "client"
+          ],
+          "compress": false
+        }
+      ]
+    }
+  ],
+  "database": {
+    "name": "psycopg2",
+    "args": {
+      "user": "synapse",
+      "password": "__SECRET_DB_SYNAPSE__",
+      "database": "synapse",
+      "host": "db",
+      "port": 5432,
+      "cp_min": 5,
+      "cp_max": 10,
+      "dbname": "synapse"
+    }
+  },
+  "log_config": "/data/log.yaml",
+  "media_store_path": "/data/media_store",
+  "registration_shared_secret": "__SECRET_SYNAPSE_REGISTRATION_SHARED_SECRET__",
+  "report_stats": false,
+  "macaroon_secret_key": "__SECRET_SYNAPSE_MACAROON_SECRET_KEY__",
+  "form_secret": "__SECRET_SYNAPSE_FORM_SECRET__",
+  "signing_key_path": "/data/signing.key",
+  "trusted_key_servers": [
+    {
+      "server_name": "matrix.org"
+    }
+  ],
+  "public_baseurl": "__PUBLIC_ORIGIN__/",
+  "enable_registration": false,
+  "enable_registration_without_verification": false,
+  "allow_guest_access": false,
+  "app_service_config_files": [
+    "/data/matrix-pinduoduo-registration.yaml",
+    "/data/matrix-taobao-registration.yaml",
+    "/data/mautrix-linkedin-registration.yaml",
+    "/data/matrix-wechat-registration.yaml",
+    "/data/mautrix-email-registration.yaml",
+    "/data/mautrix-whatsapp-registration.yaml",
+    "/data/mautrix-telegram-registration.yaml",
+    "/data/mautrix-instagram-registration.yaml",
+    "/data/mautrix-facebook-registration.yaml",
+    "/data/mautrix-twitter-registration.yaml",
+    "/data/mautrix-tiktok-registration.yaml",
+    "/data/matrix-imo-registration.yaml",
+    "/data/appservice-threads-20261119.yaml",
+    "/data/appservice-ok-20261119.yaml",
+    "/data/appservice-vk-20261119.yaml"
+  ],
+  "modules": [
+    {
+      "module": "media_retention.MediaRetention",
+      "config": {
+        "months": 2,
+        "interval_seconds": 60,
+        "status_file": "/data/media-retention-status.json"
+      }
+    },
+    {
+      "module": "history_cutoff.HistoryCutoff",
+      "config": {
+        "cutoff_ms": 0,
+        "platforms": [
+          "whatsapp",
+          "telegram"
+        ],
+        "server_name": "__SERVER_NAME__",
+        "room_ids": []
+      }
+    }
+  ],
+  "max_upload_size": "250M"
+}

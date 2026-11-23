@@ -1,0 +1,241 @@
+{
+  "network": {
+    "displayname_template": "{{ with .Organization }}{{ . }}{{ else }}{{ .FirstName }} {{ .LastName }}{{ end }} (LinkedIn)",
+    "log_redacted_login_responses": false,
+    "sync": {
+      "update_limit": 50,
+      "create_limit": 30
+    }
+  },
+  "bridge": {
+    "command_prefix": "!linkedin",
+    "personal_filtering_spaces": true,
+    "private_chat_portal_meta": true,
+    "async_events": false,
+    "split_portals": true,
+    "resend_bridge_info": false,
+    "cleanup_unknown_rooms": false,
+    "no_bridge_info_state_key": false,
+    "bridge_status_notices": "important",
+    "transient_state_debounce": "0s",
+    "send_reconnect_wait": "0s",
+    "unknown_error_auto_reconnect": null,
+    "unknown_error_max_auto_reconnects": 10,
+    "bridge_matrix_leave": false,
+    "drop_matrix_profile_changes": false,
+    "bridge_notices": false,
+    "tag_only_on_create": true,
+    "only_bridge_tags": [
+      "m.favourite",
+      "m.lowpriority"
+    ],
+    "mute_only_on_create": true,
+    "deduplicate_matrix_messages": false,
+    "portal_event_buffer": 64,
+    "cross_room_replies": false,
+    "revert_failed_state_changes": false,
+    "kick_matrix_users": true,
+    "enable_send_state_requests": false,
+    "phone_numbers_in_profile": false,
+    "view_limited_media": false,
+    "cleanup_on_logout": {
+      "enabled": false,
+      "manual": {
+        "private": "nothing",
+        "relayed": "nothing",
+        "shared_no_users": "nothing",
+        "shared_has_users": "nothing"
+      },
+      "bad_credentials": {
+        "private": "nothing",
+        "relayed": "nothing",
+        "shared_no_users": "nothing",
+        "shared_has_users": "nothing"
+      }
+    },
+    "relay": {
+      "enabled": false,
+      "admin_only": true,
+      "prefer_default": true,
+      "allow_bridge": true,
+      "default_relays": [],
+      "user_distinguishers": [
+        "🟦",
+        "🟣",
+        "🟩",
+        "⭕️",
+        "🔶",
+        "⬛️",
+        "🔵",
+        "🟢"
+      ],
+      "message_formats": {
+        "m.text": "<b>{{ .Sender.DisambiguatedName }}</b>: {{ .Message }}",
+        "m.notice": "<b>{{ .Sender.DisambiguatedName }}</b>: {{ .Message }}",
+        "m.emote": "* <b>{{ .Sender.DisambiguatedName }}</b> {{ .Message }}",
+        "m.file": "<b>{{ .Sender.DisambiguatedName }}</b> sent a file{{ if .Caption }}: {{ .Caption }}{{ end }}",
+        "m.image": "<b>{{ .Sender.DisambiguatedName }}</b> sent an image{{ if .Caption }}: {{ .Caption }}{{ end }}",
+        "m.audio": "<b>{{ .Sender.DisambiguatedName }}</b> sent an audio file{{ if .Caption }}: {{ .Caption }}{{ end }}",
+        "m.video": "<b>{{ .Sender.DisambiguatedName }}</b> sent a video{{ if .Caption }}: {{ .Caption }}{{ end }}",
+        "m.location": "<b>{{ .Sender.DisambiguatedName }}</b> sent a location{{ if .Caption }}: {{ .Caption }}{{ end }}"
+      },
+      "displayname_format": "{{ .DisambiguatedName }}"
+    },
+    "portal_create_filter": {
+      "mode": "deny",
+      "list": [],
+      "always_deny_from_login": []
+    },
+    "permissions": {
+      "*": "block",
+      "__MATRIX_OWNER__": "admin"
+    }
+  },
+  "database": {
+    "type": "postgres",
+    "uri": "postgres://linkedin:__SECRET_DB_LINKEDIN__@db:5432/linkedin?sslmode=disable",
+    "max_open_conns": 5,
+    "max_idle_conns": 1,
+    "max_conn_idle_time": null,
+    "max_conn_lifetime": null
+  },
+  "homeserver": {
+    "address": "http://synapse:8008",
+    "domain": "__SERVER_NAME__",
+    "software": "standard",
+    "status_endpoint": "",
+    "message_send_checkpoint_endpoint": "",
+    "async_media": false,
+    "websocket": false,
+    "ping_interval_seconds": 0,
+    "retry_limit": 4,
+    "max_connections": 0
+  },
+  "appservice": {
+    "address": "http://mautrix-linkedin:29341",
+    "public_address": "__PUBLIC_ORIGIN__/matrix-onboarding/linkedin",
+    "hostname": "0.0.0.0",
+    "port": 29341,
+    "id": "linkedin",
+    "bot": {
+      "username": "linkedinbot",
+      "displayname": "LinkedIn",
+      "avatar": ""
+    },
+    "ephemeral_events": true,
+    "async_transactions": false,
+    "as_token": "__SECRET_LINKEDIN_AS_TOKEN__",
+    "hs_token": "__SECRET_LINKEDIN_HS_TOKEN__",
+    "username_template": "linkedin_{{.}}"
+  },
+  "matrix": {
+    "message_status_events": false,
+    "delivery_receipts": false,
+    "message_error_notices": true,
+    "sync_direct_chat_list": true,
+    "federate_rooms": false,
+    "upload_file_threshold": 5242880,
+    "ghost_extra_profile_info": false,
+    "max_download_size": -1
+  },
+  "analytics": {
+    "token": "",
+    "url": "",
+    "user_id": ""
+  },
+  "provisioning": {
+    "shared_secret": "__SECRET_LINKEDIN_PROVISIONING_SHARED_SECRET__",
+    "allow_matrix_auth": true,
+    "debug_endpoints": false,
+    "fail_on_webauthn": false,
+    "request_id_header": "Request-Id",
+    "trust_incoming_request_id": false
+  },
+  "public_media": {
+    "enabled": false,
+    "signing_key": "__SECRET_LINKEDIN_PUBLIC_MEDIA_SIGNING_KEY__",
+    "expiry": 0,
+    "hash_length": 32,
+    "path_prefix": "/_mautrix/publicmedia",
+    "use_database": false
+  },
+  "direct_media": {
+    "enabled": false,
+    "encrypted": false,
+    "serve_only": false,
+    "server_name": "discord-media.example.com",
+    "well_known_response": null,
+    "media_id_prefix": null,
+    "allow_proxy": true,
+    "server_key": "ed25519 Pl0UHA ETLEs04MmIMT3fXN/9xtIAkcTqt/vTECuubKxfhRGeA"
+  },
+  "backfill": {
+    "enabled": true,
+    "max_initial_messages": 30,
+    "max_catchup_messages": 100,
+    "unread_hours_threshold": 720,
+    "threads": {
+      "max_initial_messages": 50
+    },
+    "queue": {
+      "enabled": false,
+      "manual": false,
+      "batch_size": 100,
+      "batch_delay": 20,
+      "max_batches": -1,
+      "max_batches_override": {}
+    }
+  },
+  "double_puppet": {
+    "servers": {
+      "anotherserver.example.org": "https://matrix.anotherserver.example.org"
+    },
+    "allow_discovery": false,
+    "secrets": {
+      "example.com": "as_token:foobar"
+    }
+  },
+  "encryption": {
+    "allow": false,
+    "default": false,
+    "require": false,
+    "appservice": false,
+    "msc4190": false,
+    "msc4392": false,
+    "self_sign": false,
+    "allow_key_sharing": true,
+    "plaintext_mentions": false,
+    "pickle_key": "UiZyxDa8rtiZuF5NZR3S6AJmZkCUj3gOjrFQW12x3fziUVsGiveMnf6KOkdUrA9O",
+    "delete_keys": {
+      "delete_outbound_on_ack": false,
+      "dont_store_outbound": false,
+      "ratchet_on_decrypt": false,
+      "delete_fully_used_on_decrypt": false,
+      "delete_prev_on_new_session": false,
+      "delete_on_device_delete": false,
+      "periodically_delete_expired": false,
+      "delete_outdated_inbound": false
+    },
+    "verification_levels": {
+      "receive": "unverified",
+      "send": "unverified",
+      "share": "cross-signed-tofu"
+    },
+    "rotation": {
+      "enable_custom": false,
+      "milliseconds": 604800000,
+      "messages": 100,
+      "disable_device_change_key_rotation": false
+    }
+  },
+  "env_config_prefix": null,
+  "logging": {
+    "min_level": "info",
+    "writers": [
+      {
+        "type": "stdout",
+        "format": "json"
+      }
+    ]
+  }
+}

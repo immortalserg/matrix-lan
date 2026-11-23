@@ -1,0 +1,7 @@
+.mx_SpaceButton_avatarWrapper{position:relative}
+.mx_SpaceButton_avatarWrapper:has(>.mc-account-service-logo:not([hidden]))>[data-testid="avatar-img"]{visibility:hidden}
+.mc-account-service-logo{position:absolute;inset:0;margin:auto;width:32px;height:32px;padding:4px;box-sizing:border-box;object-fit:contain;border-radius:9px;background:#fff;pointer-events:none;z-index:1}
+.mc-account-service-logo[hidden]{display:none}
+.mx_SpaceButton_avatarWrapper .mc-account-network[hidden]{display:none}
+.mx_SpaceButton_avatarWrapper .mc-account-dot{z-index:5}
+.mx_SpaceButton_avatarWrapper .mx_SpacePanel_badgeContainer{z-index:6}

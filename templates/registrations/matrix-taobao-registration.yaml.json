@@ -1,0 +1,27 @@
+{
+  "as_token": "__SECRET_MATRIX_LAN_TAOBAO_AS_TOKEN__",
+  "hs_token": "__SECRET_MATRIX_LAN_TAOBAO_HS_TOKEN__",
+  "id": "matrix-lan-taobao",
+  "namespaces": {
+    "aliases": [
+      {
+        "exclusive": true,
+        "regex": "#taobao_(account|chat)_[0-9a-f]+:__SERVER_RE__"
+      }
+    ],
+    "rooms": [],
+    "users": [
+      {
+        "exclusive": true,
+        "regex": "@taobao_[0-9a-f]+:__SERVER_RE__"
+      },
+      {
+        "exclusive": true,
+        "regex": "@taobaobot:__SERVER_RE__"
+      }
+    ]
+  },
+  "rate_limited": false,
+  "sender_localpart": "taobaobot",
+  "url": "http://matrix-taobao:29392"
+}

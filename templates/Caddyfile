@@ -1,0 +1,382 @@
+{
+    default_sni __SERVER_NAME__
+}
+
+https://__SERVER_NAME__:18443 {
+    tls internal
+
+
+
+    handle_path /matrix-accounts/* {
+        @bad_origin_accounts {
+            header Origin *
+            not header_regexp Origin ^https://__SERVER_RE__:(18081|18008)$
+        }
+        @bad_path_accounts not path /v1/accounts /v1/refresh /v1/msb-cbmrs/settings /v1/msb-cbmrs/test /v1/accounts/delete
+        @bad_method_accounts not method GET POST
+        route {
+            respond @bad_origin_accounts 403
+            respond @bad_path_accounts 404
+            respond @bad_method_accounts 405
+            reverse_proxy matrix-accounts:29400 {
+                transport http {
+                    response_header_timeout 110s
+                }
+                header_down -Access-Control-Allow-Origin
+                header_down -Access-Control-Allow-Credentials
+                header_down Cache-Control "private, no-store"
+            }
+        }
+    }
+
+    # Matrix account onboarding: native Matrix user authentication, no shared secrets in the browser.
+    handle_path /matrix-onboarding/email/* {
+        @bad_origin_email {
+            header Origin *
+            not header_regexp Origin ^https://__SERVER_RE__:(18081|18008)$
+        }
+        @bad_path_email not path /v3/whoami /v3/login/flows /v3/login/start/* /v3/login/step/* /v3/login/cancel/*
+        @bad_method_email not method GET POST
+        route {
+            respond @bad_origin_email 403
+            respond @bad_path_email 404
+            respond @bad_method_email 405
+            rewrite * /_matrix/provision{uri}
+            reverse_proxy mautrix-email:29319 {
+                header_down -Access-Control-Allow-Origin
+                header_down -Access-Control-Allow-Credentials
+                header_down Cache-Control "private, no-store"
+                transport http {
+                    response_header_timeout 80s
+                }
+            }
+        }
+    }
+
+    handle_path /matrix-onboarding/wechat/* {
+        @bad_origin_wechat {
+            header Origin *
+            not header_regexp Origin ^https://__SERVER_RE__:(18081|18008)$
+        }
+        @bad_path_wechat not path /v3/whoami /v3/login/flows /v3/login/start/* /v3/login/step/* /v3/login/cancel/* /v3/chats /v3/chats/open
+        @bad_method_wechat not method GET POST
+        route {
+            respond @bad_origin_wechat 403
+            respond @bad_path_wechat 404
+            respond @bad_method_wechat 405
+            rewrite * /_matrix/provision{uri}
+            reverse_proxy wechat-native:29391 {
+                header_down -Access-Control-Allow-Origin
+                header_down -Access-Control-Allow-Credentials
+                header_down Cache-Control "private, no-store"
+                transport http {
+                    response_header_timeout 80s
+                }
+            }
+        }
+    }
+
+    handle_path /matrix-onboarding/linkedin/* {
+        @bad_origin_linkedin {
+            header Origin *
+            not header_regexp Origin ^https://__SERVER_RE__:(18081|18008)$
+        }
+        @bad_path_linkedin not path /v3/whoami /v3/login/flows /v3/login/start/* /v3/login/step/* /v3/login/cancel/*
+        @bad_method_linkedin not method GET POST
+        route {
+            respond @bad_origin_linkedin 403
+            respond @bad_path_linkedin 404
+            respond @bad_method_linkedin 405
+            rewrite * /_matrix/provision{uri}
+            reverse_proxy mautrix-linkedin:29341 {
+                header_down -Access-Control-Allow-Origin
+                header_down -Access-Control-Allow-Credentials
+                header_down Cache-Control "private, no-store"
+                transport http {
+                    response_header_timeout 80s
+                }
+            }
+        }
+    }
+
+    handle_path /matrix-onboarding/taobao/* {
+        @bad_origin_taobao {
+            header Origin *
+            not header_regexp Origin ^https://__SERVER_RE__:(18081|18008)$
+        }
+        @bad_path_taobao not path /v3/whoami /v3/login/flows /v3/login/start/* /v3/login/step/* /v3/login/cancel/* /v3/chats /v3/chats/open
+        @bad_method_taobao not method GET POST
+        route {
+            respond @bad_origin_taobao 403
+            respond @bad_path_taobao 404
+            respond @bad_method_taobao 405
+            rewrite * /_matrix/provision{uri}
+            reverse_proxy matrix-taobao:29392 {
+                header_down -Access-Control-Allow-Origin
+                header_down -Access-Control-Allow-Credentials
+                header_down Cache-Control "private, no-store"
+                transport http {
+                    response_header_timeout 80s
+                }
+            }
+        }
+    }
+
+    handle_path /matrix-onboarding/pinduoduo/* {
+        @bad_origin_pinduoduo {
+            header Origin *
+            not header_regexp Origin ^https://__SERVER_RE__:(18081|18008)$
+        }
+        @bad_path_pinduoduo not path /v3/whoami /v3/login/flows /v3/login/start/* /v3/login/step/* /v3/login/cancel/* /v3/chats /v3/chats/open
+        @bad_method_pinduoduo not method GET POST
+        route {
+            respond @bad_origin_pinduoduo 403
+            respond @bad_path_pinduoduo 404
+            respond @bad_method_pinduoduo 405
+            rewrite * /_matrix/provision{uri}
+            reverse_proxy matrix-pinduoduo:29392 {
+                header_down -Access-Control-Allow-Origin
+                header_down -Access-Control-Allow-Credentials
+                header_down Cache-Control "private, no-store"
+                transport http {
+                    response_header_timeout 80s
+                }
+            }
+        }
+    }
+
+    handle_path /matrix-onboarding/threads/* {
+        @bad_origin_threads {
+            header Origin *
+            not header_regexp Origin ^https://__SERVER_RE__:(18081|18008)$
+        }
+        @bad_path_threads not path /v3/whoami /v3/login/flows /v3/login/start/* /v3/login/step/* /v3/login/cancel/* /v3/chats /v3/chats/open
+        @bad_method_threads not method GET POST
+        route {
+            respond @bad_origin_threads 403
+            respond @bad_path_threads 404
+            respond @bad_method_threads 405
+            rewrite * /_matrix/provision{uri}
+            reverse_proxy matrix-threads:29393 {
+                header_down -Access-Control-Allow-Origin
+                header_down -Access-Control-Allow-Credentials
+                header_down Cache-Control "private, no-store"
+                transport http {
+                    response_header_timeout 100s
+                }
+            }
+        }
+    }
+    handle_path /matrix-onboarding/ok/* {
+        @bad_origin_ok {
+            header Origin *
+            not header_regexp Origin ^https://__SERVER_RE__:(18081|18008)$
+        }
+        @bad_path_ok not path /v3/whoami /v3/login/flows /v3/login/start/* /v3/login/step/* /v3/login/cancel/* /v3/chats /v3/chats/open
+        @bad_method_ok not method GET POST
+        route {
+            respond @bad_origin_ok 403
+            respond @bad_path_ok 404
+            respond @bad_method_ok 405
+            rewrite * /_matrix/provision{uri}
+            reverse_proxy matrix-ok:29393 {
+                header_down -Access-Control-Allow-Origin
+                header_down -Access-Control-Allow-Credentials
+                header_down Cache-Control "private, no-store"
+                transport http {
+                    response_header_timeout 100s
+                }
+            }
+        }
+    }
+    handle_path /matrix-onboarding/vk/* {
+        @bad_origin_vk {
+            header Origin *
+            not header_regexp Origin ^https://__SERVER_RE__:(18081|18008)$
+        }
+        @bad_path_vk not path /v3/whoami /v3/login/flows /v3/login/start/* /v3/login/step/* /v3/login/cancel/* /v3/chats /v3/chats/open
+        @bad_method_vk not method GET POST
+        route {
+            respond @bad_origin_vk 403
+            respond @bad_path_vk 404
+            respond @bad_method_vk 405
+            rewrite * /_matrix/provision{uri}
+            reverse_proxy matrix-vk:29393 {
+                header_down -Access-Control-Allow-Origin
+                header_down -Access-Control-Allow-Credentials
+                header_down Cache-Control "private, no-store"
+                transport http {
+                    response_header_timeout 100s
+                }
+            }
+        }
+    }
+    handle_path /matrix-onboarding/imo/* {
+        @bad_origin_imo {
+            header Origin *
+            not header_regexp Origin ^https://__SERVER_RE__:(18081|18008)$
+        }
+        @bad_path_imo not path /v3/chats /v3/chats/open /v3/whoami /v3/login/flows /v3/login/start/* /v3/login/step/* /v3/login/cancel/* /v3/resolve_identifier/* /v3/create_dm/*
+        @bad_method_imo not method GET POST
+        route {
+            respond @bad_origin_imo 403
+            respond @bad_path_imo 404
+            respond @bad_method_imo 405
+            rewrite * /_matrix/provision{uri}
+            reverse_proxy matrix-imo:29390 {
+                header_down -Access-Control-Allow-Origin
+                header_down -Access-Control-Allow-Credentials
+                header_down Cache-Control "private, no-store"
+                transport http {
+                    response_header_timeout 80s
+                }
+            }
+        }
+    }
+    handle_path /matrix-onboarding/whatsapp/* {
+        @bad_origin_whatsapp {
+            header Origin *
+            not header_regexp Origin ^https://__SERVER_RE__:(18081|18008)$
+        }
+        @bad_path_whatsapp not path /v3/whoami /v3/login/flows /v3/login/start/* /v3/login/step/* /v3/login/cancel/* /v3/resolve_identifier/* /v3/create_dm/*
+        @bad_method_whatsapp not method GET POST
+        route {
+            respond @bad_origin_whatsapp 403
+            respond @bad_path_whatsapp 404
+            respond @bad_method_whatsapp 405
+            rewrite * /_matrix/provision{uri}
+            reverse_proxy mautrix-whatsapp:29318 {
+                header_down -Access-Control-Allow-Origin
+                header_down -Access-Control-Allow-Credentials
+                header_down Cache-Control "private, no-store"
+                transport http {
+                    response_header_timeout 80s
+                }
+            }
+        }
+    }
+    handle_path /matrix-onboarding/telegram/* {
+        @bad_origin_telegram {
+            header Origin *
+            not header_regexp Origin ^https://__SERVER_RE__:(18081|18008)$
+        }
+        @bad_path_telegram not path /v3/whoami /v3/login/flows /v3/login/start/* /v3/login/step/* /v3/login/cancel/* /v3/resolve_identifier/* /v3/create_dm/*
+        @bad_method_telegram not method GET POST
+        route {
+            respond @bad_origin_telegram 403
+            respond @bad_path_telegram 404
+            respond @bad_method_telegram 405
+            rewrite * /_matrix/provision{uri}
+            reverse_proxy mautrix-telegram:29317 {
+                header_down -Access-Control-Allow-Origin
+                header_down -Access-Control-Allow-Credentials
+                header_down Cache-Control "private, no-store"
+                transport http {
+                    response_header_timeout 80s
+                }
+            }
+        }
+    }
+    handle_path /matrix-onboarding/instagram/* {
+        @bad_origin_instagram {
+            header Origin *
+            not header_regexp Origin ^https://__SERVER_RE__:(18081|18008)$
+        }
+        @bad_path_instagram not path /v3/whoami /v3/login/flows /v3/login/start/* /v3/login/step/* /v3/login/cancel/*
+        @bad_method_instagram not method GET POST
+        route {
+            respond @bad_origin_instagram 403
+            respond @bad_path_instagram 404
+            respond @bad_method_instagram 405
+            rewrite * /_matrix/provision{uri}
+            reverse_proxy mautrix-instagram:29330 {
+                header_down -Access-Control-Allow-Origin
+                header_down -Access-Control-Allow-Credentials
+                header_down Cache-Control "private, no-store"
+                transport http {
+                    response_header_timeout 80s
+                }
+            }
+        }
+    }
+    handle_path /matrix-onboarding/facebook/* {
+        @bad_origin_facebook {
+            header Origin *
+            not header_regexp Origin ^https://__SERVER_RE__:(18081|18008)$
+        }
+        @bad_path_facebook not path /v3/whoami /v3/login/flows /v3/login/start/* /v3/login/step/* /v3/login/cancel/*
+        @bad_method_facebook not method GET POST
+        route {
+            respond @bad_origin_facebook 403
+            respond @bad_path_facebook 404
+            respond @bad_method_facebook 405
+            rewrite * /_matrix/provision{uri}
+            reverse_proxy mautrix-facebook:29319 {
+                header_down -Access-Control-Allow-Origin
+                header_down -Access-Control-Allow-Credentials
+                header_down Cache-Control "private, no-store"
+                transport http {
+                    response_header_timeout 80s
+                }
+            }
+        }
+    }
+    handle_path /matrix-onboarding/twitter/* {
+        @bad_origin_twitter {
+            header Origin *
+            not header_regexp Origin ^https://__SERVER_RE__:(18081|18008)$
+        }
+        @bad_path_twitter not path /v3/whoami /v3/login/flows /v3/login/start/* /v3/login/step/* /v3/login/cancel/*
+        @bad_method_twitter not method GET POST
+        route {
+            respond @bad_origin_twitter 403
+            respond @bad_path_twitter 404
+            respond @bad_method_twitter 405
+            rewrite * /_matrix/provision{uri}
+            reverse_proxy mautrix-twitter:29327 {
+                header_down -Access-Control-Allow-Origin
+                header_down -Access-Control-Allow-Credentials
+                header_down Cache-Control "private, no-store"
+                transport http {
+                    response_header_timeout 80s
+                }
+            }
+        }
+    }
+    handle_path /matrix-onboarding/tiktok/* {
+        @bad_origin_tiktok {
+            header Origin *
+            not header_regexp Origin ^https://__SERVER_RE__:(18081|18008)$
+        }
+        @bad_path_tiktok not path /v3/whoami /v3/login/flows /v3/login/start/* /v3/login/step/* /v3/login/cancel/*
+        @bad_method_tiktok not method GET POST
+        route {
+            respond @bad_origin_tiktok 403
+            respond @bad_path_tiktok 404
+            respond @bad_method_tiktok 405
+            rewrite * /_matrix/provision{uri}
+            reverse_proxy mautrix-tiktok:29380 {
+                header_down -Access-Control-Allow-Origin
+                header_down -Access-Control-Allow-Credentials
+                header_down Cache-Control "private, no-store"
+                transport http {
+                    response_header_timeout 80s
+                }
+            }
+        }
+    }
+
+    @api path /api/*
+    handle @api {
+        reverse_proxy chat-api:8080
+    }
+
+    @matrix path /_matrix/* /_synapse/client/*
+    handle @matrix {
+        reverse_proxy synapse:8008
+    }
+
+    handle {
+        reverse_proxy element:80
+    }
+}

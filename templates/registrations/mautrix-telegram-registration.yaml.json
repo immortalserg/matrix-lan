@@ -1,0 +1,22 @@
+{
+  "id": "telegram",
+  "url": "http://mautrix-telegram:29317",
+  "as_token": "__SECRET_TELEGRAM_AS_TOKEN__",
+  "hs_token": "__SECRET_TELEGRAM_HS_TOKEN__",
+  "sender_localpart": "nWoly0WtvvWObfOZssXjJkdb86IyMers",
+  "rate_limited": false,
+  "namespaces": {
+    "users": [
+      {
+        "regex": "^@telegrambot:__SERVER_RE__$",
+        "exclusive": true
+      },
+      {
+        "regex": "^@telegram_.*:__SERVER_RE__$",
+        "exclusive": true
+      }
+    ]
+  },
+  "de.sorunome.msc2409.push_ephemeral": true,
+  "receive_ephemeral": true
+}

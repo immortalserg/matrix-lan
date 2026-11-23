@@ -1,0 +1,30 @@
+.mx_SpaceSettingsDialog .mar-connection{display:block;position:relative;box-sizing:border-box;width:100%;min-width:0;margin:0 0 24px;padding:16px;border:1px solid var(--cpd-color-border-interactive-secondary,#789184);border-radius:10px;color:inherit;background:var(--cpd-color-bg-subtle-primary,transparent);overflow-wrap:anywhere}
+.mar-connection h3{margin:0 0 12px;font-size:16px;line-height:1.4}
+.mar-account{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 16px;align-items:center;min-width:0}
+.mar-account p{margin:0;font-size:14px;line-height:1.5;grid-column:1}
+.mar-account p:first-child{font-weight:600}
+.mar-account p:nth-child(2){display:flex;gap:6px;align-items:center;color:var(--cpd-color-text-secondary,inherit)}
+.mar-account p:nth-child(2)::before{content:'';display:inline-block;flex:0 0 8px;height:8px;border-radius:50%;background:#cf9e28}
+.mar-account[data-state=green] p:nth-child(2)::before{background:#20a875}
+.mar-account[data-state=red] p:nth-child(2)::before{background:#df5050}
+.mar-account button{grid-column:2;grid-row:1 / span 2;min-height:38px;padding:8px 14px;border:1px solid var(--cpd-color-border-interactive-secondary,#789184);border-radius:8px;background:transparent;color:inherit;font:inherit;font-size:13px;cursor:pointer}
+.mar-account button:hover{background:var(--cpd-color-bg-subtle-secondary,#78918422)}
+.mar-account button:focus-visible{outline:2px solid var(--cpd-color-border-interactive-primary,#20a875);outline-offset:2px}
+.mar-account button:disabled{opacity:.6;cursor:wait}
+.mar-connection small{display:block;margin-top:12px;font-size:12px;line-height:1.5;color:var(--cpd-color-text-secondary,inherit)}
+.mx_SpaceSettingsDialog .mx_TabbedView .mx_SettingsTab:has(>.mar-connection){min-width:0;padding-right:24px}
+.mar-service-avatar{object-fit:contain;box-sizing:border-box;padding:12px;background:var(--cpd-color-bg-subtle-secondary,#78918422)}
+@media(max-width:700px){
+ .mx_Dialog:has(>.mx_SpaceSettingsDialog .mar-connection){box-sizing:border-box;max-width:100vw;padding:16px}
+ .mx_SpaceSettingsDialog:has(.mar-connection){width:calc(100vw - 32px);max-width:100%}
+ .mx_SpaceSettingsDialog:has(.mar-connection) .mx_Dialog_title{overflow-wrap:anywhere}
+ .mx_SpaceSettingsDialog:has(.mar-connection) .mx_TabbedView{padding:0 16px}
+ .mx_SpaceSettingsDialog:has(.mar-connection) .mx_TabbedView_tabLabels{position:static;display:flex;flex:0 0 auto;width:100%;max-width:100%;gap:4px;margin:0 0 12px;overflow-x:auto}
+ .mx_SpaceSettingsDialog:has(.mar-connection) .mx_TabbedView_tabLabel{flex:0 0 auto;padding:8px 10px;font-size:12px}
+ .mx_SpaceSettingsDialog:has(.mar-connection) .mx_TabbedView_tabLabel_text{white-space:nowrap}
+ .mx_SpaceSettingsDialog:has(.mar-connection) .mx_TabbedView_tabPanel{margin-left:0;min-width:0}
+ .mx_SpaceSettingsDialog:has(.mar-connection) .mx_TabbedView_tabPanelContent{min-width:0}
+ .mx_SpaceSettingsDialog .mx_TabbedView .mx_SettingsTab:has(>.mar-connection){padding-right:0;padding-bottom:32px}
+ .mar-account{grid-template-columns:minmax(0,1fr)}
+ .mar-account button{grid-column:1;grid-row:auto;width:100%;margin-top:8px}
+}

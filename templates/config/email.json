@@ -1,0 +1,220 @@
+{
+  "network": {
+    "imap": {
+      "gmail_inbox_query": "in:inbox -category:promotions -category:social -category:forums -in:spam -in:trash",
+      "default_timeout": 30,
+      "startup_backfill_seconds": 180,
+      "startup_backfill_max": 25,
+      "initial_idle_timeout_seconds": 3
+    },
+    "logging": {
+      "sanitized": true,
+      "pseudonym_secret": "__SECRET_EMAIL_NETWORK_LOGGING_PSEUDONYM_SECRET__"
+    },
+    "email_processing": {
+      "max_upload_bytes": 26214400,
+      "gzip_large_bodies": true
+    },
+    "gmail_oauth": {
+      "client_id": "",
+      "client_secret": "",
+      "listener_address": "127.0.0.1:0",
+      "default_scope_mode": "modify",
+      "callback_timeout_seconds": 600
+    },
+    "draft_webhook": {
+      "url": "",
+      "secret": "",
+      "timeout_seconds": 10
+    }
+  },
+  "bridge": {
+    "command_prefix": "!matrimail",
+    "personal_filtering_spaces": true,
+    "private_chat_portal_meta": true,
+    "async_events": false,
+    "split_portals": false,
+    "resend_bridge_info": false,
+    "no_bridge_info_state_key": false,
+    "bridge_status_notices": "important",
+    "unknown_error_auto_reconnect": null,
+    "bridge_matrix_leave": false,
+    "bridge_notices": false,
+    "tag_only_on_create": true,
+    "only_bridge_tags": [
+      "m.favourite",
+      "m.lowpriority"
+    ],
+    "mute_only_on_create": true,
+    "deduplicate_matrix_messages": false,
+    "cross_room_replies": false,
+    "cleanup_on_logout": {
+      "enabled": false,
+      "manual": {
+        "private": "nothing",
+        "relayed": "nothing",
+        "shared_no_users": "nothing",
+        "shared_has_users": "nothing"
+      },
+      "bad_credentials": {
+        "private": "nothing",
+        "relayed": "nothing",
+        "shared_no_users": "nothing",
+        "shared_has_users": "nothing"
+      }
+    },
+    "relay": {
+      "enabled": false,
+      "admin_only": true,
+      "default_relays": [],
+      "message_formats": {
+        "m.text": "<b>{{ .Sender.DisambiguatedName }}</b>: {{ .Message }}",
+        "m.notice": "<b>{{ .Sender.DisambiguatedName }}</b>: {{ .Message }}",
+        "m.emote": "* <b>{{ .Sender.DisambiguatedName }}</b> {{ .Message }}",
+        "m.file": "<b>{{ .Sender.DisambiguatedName }}</b> sent a file{{ if .Caption }}: {{ .Caption }}{{ end }}",
+        "m.image": "<b>{{ .Sender.DisambiguatedName }}</b> sent an image{{ if .Caption }}: {{ .Caption }}{{ end }}",
+        "m.audio": "<b>{{ .Sender.DisambiguatedName }}</b> sent an audio file{{ if .Caption }}: {{ .Caption }}{{ end }}",
+        "m.video": "<b>{{ .Sender.DisambiguatedName }}</b> sent a video{{ if .Caption }}: {{ .Caption }}{{ end }}",
+        "m.location": "<b>{{ .Sender.DisambiguatedName }}</b> sent a location{{ if .Caption }}: {{ .Caption }}{{ end }}"
+      },
+      "displayname_format": "{{ .DisambiguatedName }}"
+    },
+    "permissions": {
+      "*": "block",
+      "__MATRIX_OWNER__": "admin"
+    }
+  },
+  "database": {
+    "type": "sqlite3-fk-wal",
+    "uri": "file:/data/email.db?_txlock=immediate",
+    "max_open_conns": 5,
+    "max_idle_conns": 1,
+    "max_conn_idle_time": null,
+    "max_conn_lifetime": null
+  },
+  "homeserver": {
+    "address": "http://synapse:8008",
+    "domain": "__SERVER_NAME__",
+    "software": "standard",
+    "status_endpoint": null,
+    "message_send_checkpoint_endpoint": null,
+    "async_media": false,
+    "websocket": false,
+    "ping_interval_seconds": 0
+  },
+  "appservice": {
+    "address": "http://mautrix-email:29319",
+    "public_address": "https://bridge.example.com",
+    "hostname": "0.0.0.0",
+    "port": 29319,
+    "id": "gmail",
+    "bot": {
+      "username": "gmailbot",
+      "displayname": "Gmail",
+      "avatar": ""
+    },
+    "ephemeral_events": true,
+    "async_transactions": false,
+    "as_token": "__SECRET_GMAIL_AS_TOKEN__",
+    "hs_token": "__SECRET_GMAIL_HS_TOKEN__",
+    "username_template": "gmail_{{.}}"
+  },
+  "matrix": {
+    "message_status_events": false,
+    "delivery_receipts": false,
+    "message_error_notices": true,
+    "sync_direct_chat_list": true,
+    "federate_rooms": false,
+    "upload_file_threshold": 5242880
+  },
+  "analytics": {
+    "token": null,
+    "url": "https://api.segment.io/v1/track",
+    "user_id": null
+  },
+  "provisioning": {
+    "prefix": "/_matrix/provision",
+    "shared_secret": "__SECRET_EMAIL_PROVISIONING_SHARED_SECRET__",
+    "allow_matrix_auth": true,
+    "debug_endpoints": false,
+    "enable_session_transfers": false
+  },
+  "public_media": {
+    "enabled": false,
+    "signing_key": "__SECRET_EMAIL_PUBLIC_MEDIA_SIGNING_KEY__",
+    "expiry": 0,
+    "hash_length": 32
+  },
+  "direct_media": {
+    "enabled": false,
+    "server_name": "discord-media.example.com",
+    "well_known_response": null,
+    "media_id_prefix": null,
+    "allow_proxy": true,
+    "server_key": "ed25519 _zYvgQ EIeeexvJ216cP9P5rhCIgW4zHsIKgp73VCCWNT16Cbk"
+  },
+  "backfill": {
+    "enabled": false,
+    "max_initial_messages": 50,
+    "max_catchup_messages": 500,
+    "unread_hours_threshold": 720,
+    "threads": {
+      "max_initial_messages": 50
+    },
+    "queue": {
+      "enabled": false,
+      "batch_size": 100,
+      "batch_delay": 20,
+      "max_batches": -1,
+      "max_batches_override": {}
+    }
+  },
+  "double_puppet": {
+    "servers": {
+      "anotherserver.example.org": "https://matrix.anotherserver.example.org"
+    },
+    "allow_discovery": false,
+    "secrets": {
+      "example.com": "as_token:foobar"
+    }
+  },
+  "encryption": {
+    "allow": false,
+    "default": false,
+    "require": false,
+    "appservice": false,
+    "msc4190": false,
+    "allow_key_sharing": true,
+    "pickle_key": "Ee0owRWx7ES0NTKQSb1kzULZSHv13U6pSILOStNkw68YV2Gv7iJt0Lxkx0SXCzPn",
+    "delete_keys": {
+      "delete_outbound_on_ack": false,
+      "dont_store_outbound": false,
+      "ratchet_on_decrypt": false,
+      "delete_fully_used_on_decrypt": false,
+      "delete_prev_on_new_session": false,
+      "delete_on_device_delete": false,
+      "periodically_delete_expired": false,
+      "delete_outdated_inbound": false
+    },
+    "verification_levels": {
+      "receive": "unverified",
+      "send": "unverified",
+      "share": "cross-signed-tofu"
+    },
+    "rotation": {
+      "enable_custom": false,
+      "milliseconds": 604800000,
+      "messages": 100,
+      "disable_device_change_key_rotation": false
+    }
+  },
+  "logging": {
+    "min_level": "info",
+    "writers": [
+      {
+        "type": "stdout",
+        "format": "json"
+      }
+    ]
+  }
+}

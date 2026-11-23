@@ -1,0 +1,5 @@
+{
+  "owner": "__MATRIX_OWNER__",
+  "server_name": "__SERVER_NAME__",
+  "homeserver": "http://synapse:8008"
+}

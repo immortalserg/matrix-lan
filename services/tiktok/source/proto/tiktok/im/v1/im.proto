@@ -1,0 +1,1063 @@
+syntax = "proto2";
+
+package tiktok.im.v1;
+
+option go_package = "github.com/httpjamesm/matrix-tiktok/pkg/libtiktok/pb;tiktokpb";
+
+// Reverse-engineered TikTok web IM protobuf schema.
+//
+// This file intentionally prefers "known-good wire compatibility" over perfect
+// naming. Many field names come from observed behavior in the current client;
+// fields whose semantics are only partially understood stay conservatively
+// named as reserved_* until traffic captures justify something more specific.
+//
+// We keep proto2 so field presence and unknown-field preservation remain
+// available while the schema is still being mapped.
+
+// Empty embedded message used for field 4 in the common request envelope.
+message EmptyMessage {}
+
+// Generic metadata pair used by the REST request envelope at repeated field 15.
+//
+// Examples include browser/device properties, cookies mirrored as metadata, and
+// tt-ticket-guard keys for authenticated send/reaction calls.
+message MetadataKV {
+  optional string key = 1;
+  optional string value = 2;
+}
+
+// Common REST request envelope for the type-2059 media upload config call.
+message MediaUploadConfigRequest {
+  optional uint64 message_type = 1;
+  optional uint64 sub_command = 2;
+  optional string client_version = 3;
+  optional EmptyMessage options = 4;
+  optional uint64 platform_flag = 5;
+  optional uint64 reserved_6 = 6;
+  optional string git_hash = 7;
+  optional MediaUploadConfigRequestPayload payload = 8;
+  optional string device_id = 9;
+  optional string client_platform = 11;
+  repeated MetadataKV metadata = 15;
+  optional uint64 final_flag = 18;
+}
+
+// Request payload for POST /v1/media/upload_config.
+//
+// Captures show field 2059 present with an empty string payload.
+message MediaUploadConfigRequestPayload {
+  optional string imagex = 2059;
+}
+
+// Response envelope for POST /v1/media/upload_config.
+//
+// Only the image-upload branch (field 6 -> 2059) is modeled for now.
+message MediaUploadConfigResponse {
+  optional uint64 reserved_1 = 1;
+  optional uint64 reserved_2 = 2;
+  optional uint64 reserved_3 = 3;
+  optional string message = 4;
+  optional uint64 reserved_5 = 5;
+  optional MediaUploadConfigPayload payload = 6;
+  optional string request_id = 7;
+  optional uint64 reserved_10 = 10;
+  optional uint64 reserved_11 = 11;
+  optional string region_name = 14;
+  optional uint64 user_id = 15;
+}
+
+message MediaUploadConfigPayload {
+  optional MediaUploadConfigList imagex = 2059;
+}
+
+message MediaUploadConfigList {
+  repeated MediaUploadConfigEntry entries = 1;
+}
+
+message MediaUploadConfigEntry {
+  // 1 = ImageX image upload, 2 = VOD upload in current captures.
+  optional uint64 upload_kind = 1;
+  optional string service_id = 2;
+  optional string host = 3;
+  optional uint64 expires_at_ms = 4;
+  optional uint64 issued_at_ms = 5;
+  // AccessKeyId used in the Authorization credential scope.
+  optional string access_key_id = 6;
+  // Base64-encoded STS response, echoed directly as x-amz-security-token.
+  optional string security_token = 7;
+  // SecretAccessKey passed into TikTok's request signer.
+  optional string secret_access_key = 8;
+}
+
+// Generic tag/value pair used inside message bodies.
+//
+// Known keys include:
+// - "s:mentioned_users"
+// - "s:client_message_id"
+// - "s:is_recalled" (value "1" on placeholder/history rows for unsent messages)
+// - "s:invisible" (non-empty when the row must not be shown)
+//
+// The value is bytes because TikTok sometimes stores an embedded message here
+// (for example the empty mentioned-users payload) and sometimes plain text.
+message MetadataTag {
+  optional string key = 1;
+  optional bytes value = 2;
+}
+
+// Common REST request envelope for the type-203 inbox bootstrap call.
+//
+// This wire shape is shared with other IM endpoints:
+// - field 1: top-level message type
+// - field 2: sub-command / identifier
+// - field 3: client version ("1.6.0" in current captures)
+// - field 4: empty options message
+// - field 5: platform flag (3 = web_pc)
+// - field 8: typed inner payload
+// - field 15: repeated metadata key/value pairs
+// - field 18: trailing flag currently sent as 1
+message InboxRequest {
+  // 203 = user_init_list / inbox bootstrap.
+  optional uint64 message_type = 1;
+  // Observed as 10002 on current web inbox bootstrap captures that include group chats.
+  optional uint64 sub_command = 2;
+  optional string client_version = 3;
+  optional EmptyMessage options = 4;
+  // 3 = web_pc in current traffic.
+  optional uint64 platform_flag = 5;
+  // Observed as 1 on current web inbox bootstrap captures.
+  optional uint64 reserved_6 = 6;
+  // Often a detached web build revision string; the bridge may leave it empty when unknown.
+  optional string git_hash = 7;
+  optional InboxRequestPayload payload = 8;
+  optional string device_id = 9;
+  optional string client_platform = 11;
+  repeated MetadataKV metadata = 15;
+  // Observed as 1 on all current IM REST requests.
+  optional uint64 final_flag = 18;
+}
+
+// Typed payload wrapper for the type-203 request envelope.
+message InboxRequestPayload {
+  // Inner body matches the web client's im_proto.GetUserConversationListRequestBody.
+  optional GetUserConversationListRequestBody user_init_list = 203;
+}
+
+// Inner request body for the 203 "user_init_list" / inbox bootstrap call.
+//
+// Names and wire order are taken from the web client's protobufjs bundle; only
+// partially interpreted fields are called out conservatively below.
+message GetUserConversationListRequestBody {
+  // Drives conversation ordering in the returned list; exact enum values are
+  // not mapped from this repository alone. The web client's JS prototype
+  // defaults this to 1; this bridge historically sent 0 as the only set field
+  // (legacy uint64 reserved_1) for a full default inbox page.
+  optional int32 sort_type = 1;
+  // Pagination cursor; 0 means start from the beginning. Sent as int64 on web.
+  optional int64 cursor = 2;
+  // Conversation-category filter; client default 1 (often "all" or "primary"
+  // bucket in IM clients — treat as opaque until capture-backed mapping exists).
+  optional int32 con_type = 3;
+  // Maximum rows to return; 0 lets the server pick a default page size.
+  optional int64 limit = 4;
+  // When non-zero, selects which participant / membership roles to include.
+  optional int32 include_role = 5;
+  // When non-zero, excludes matching role bitmask / enum from the result set.
+  optional int32 exclude_role = 6;
+  // Include group conversations the user has left or that are otherwise "removed"
+  // from the normal active list.
+  optional bool include_removed_group = 7;
+  // Include "cold" (archived / low-activity / secondary-storage) conversations.
+  optional bool with_cold = 8;
+  // Extra conversation-type selector; name follows the web client spelling
+  // ("customed"). Semantics beyond "additional filter" are not confirmed here.
+  optional int32 customed_con_type = 9;
+  // Additional role filters when more than one role bit must be requested.
+  repeated int32 include_multiple_roles = 10;
+}
+
+// Common response envelope used by the inbox endpoint.
+message InboxResponse {
+  // 203 = inbox bootstrap response on current web captures.
+  optional uint64 message_type = 1;
+  // Observed as 10002 on current web captures.
+  optional uint64 sub_command = 2;
+  // Server/application status code (0 = success in current captures).
+  optional uint64 status = 3;
+  // Human-readable status text, e.g. "OK".
+  optional string message = 4;
+  optional uint64 reserved_5 = 5;
+  // Endpoint-specific payload wrapper.
+  optional InboxResponsePayload payload = 6;
+}
+
+// Typed payload wrapper for inbox responses.
+message InboxResponsePayload {
+  optional InboxConversationList user_init_list = 203;
+}
+
+// Inbox bootstrap payload.
+//
+// Current web captures carry:
+// - field 1: repeated last-message summary rows
+// - field 2: repeated conversation records
+// Older reverse-engineering work only modeled field 1.
+message InboxConversationList {
+  repeated InboxConversationEntry entries = 1;
+  repeated InboxConversationDetail conversations = 2;
+}
+
+// Minimal subset of an inbox conversation entry currently used by the bridge.
+//
+// Older direct-message captures used a small conversation stub here, but
+// current web captures can return richer "last message summary" rows instead.
+// We model the stable fields the bridge needs and leave the rest unknown.
+message InboxConversationEntry {
+  // Direct-message captures use "0:1:<userA>:<userB>"; group chats have also
+  // been observed using a plain numeric string here.
+  optional string conversation_id = 1;
+  // Observed as 2 on group-chat rows in current captures.
+  optional uint64 conversation_type = 2;
+  // Server-assigned ID of the latest message previewed in this row.
+  optional uint64 last_server_message_id = 3;
+  // Timestamp of the latest message in microseconds.
+  optional uint64 last_message_timestamp_us = 4;
+  // Conversation source ID, reused by get_by_conversation and reactions.
+  optional uint64 source_id = 5;
+  // Message kind / awe wrapper indicator for the latest row. Older schema work
+  // treated this as field 4; current captures place it at field 6.
+  optional uint64 last_message_type = 6;
+  // Numeric sender user ID of the latest message, when present.
+  optional uint64 last_sender_user_id = 7;
+  // Raw preview bytes or full last-message content JSON. Older captures used
+  // "placeholder" here for empty stub rows.
+  optional bytes last_message_preview = 8;
+  repeated MetadataTag tags = 9;
+  optional string last_sender_sec_uid = 14;
+  optional string message_subtype = 21;
+  optional uint64 cursor_ts_us = 25;
+}
+
+// One conversation record from inbox bootstrap field 2.
+message InboxConversationDetail {
+  optional string conversation_id = 1;
+  // Numeric conversation/source ID reused by follow-up APIs.
+  optional uint64 source_id = 2;
+  optional uint64 conversation_type = 3;
+  optional string deprecated = 4;
+  optional InboxConversationMembers members = 6;
+  optional uint64 reserved_7 = 7;
+  optional uint64 reserved_8 = 8;
+  optional uint64 reserved_11 = 11;
+  optional uint64 last_update_ms = 13;
+  optional InboxConversationCore core = 50;
+  optional InboxConversationState state = 51;
+}
+
+message InboxConversationMembers {
+  repeated InboxConversationMember entries = 1;
+  optional uint64 reserved_2 = 2;
+  optional uint64 reserved_3 = 3;
+}
+
+message InboxConversationMember {
+  optional uint64 user_id = 1;
+  optional uint64 role = 2;
+  optional uint64 membership = 3;
+  optional string reserved_4 = 4;
+  optional uint64 reserved_6 = 6;
+  optional string reserved_9 = 9;
+}
+
+// Conversation metadata blob nested under field 50.
+message InboxConversationCore {
+  optional string conversation_id = 1;
+  optional uint64 source_id = 2;
+  optional uint64 conversation_type = 3;
+  optional uint64 created_at_s = 4;
+  optional string title = 5;
+  optional string reserved_6 = 6;
+  optional string avatar_url = 7;
+  optional uint64 reserved_8 = 8;
+  optional string reserved_9 = 9;
+  repeated MetadataKV attributes = 11;
+  optional uint64 owner_user_id = 12;
+  optional string owner_sec_uid = 13;
+  optional uint64 reserved_14 = 14;
+  optional uint64 reserved_15 = 15;
+  optional uint64 reserved_16 = 16;
+  optional uint64 reserved_17 = 17;
+  optional uint64 reserved_18 = 18;
+  optional uint64 avatar_created_at_s = 20;
+}
+
+// Per-user conversation state nested under field 51.
+message InboxConversationState {
+  optional string conversation_id = 1;
+  optional uint64 source_id = 2;
+  optional uint64 conversation_type = 3;
+  optional uint64 reserved_4 = 4;
+  optional uint64 last_message_timestamp_us = 5;
+  optional uint64 reserved_6 = 6;
+  optional uint64 reserved_7 = 7;
+  optional uint64 reserved_8 = 8;
+  repeated MetadataKV attributes = 9;
+  optional uint64 updated_at_s = 10;
+  optional uint64 reserved_11 = 11;
+  optional uint64 reserved_12 = 12;
+  optional uint64 reserved_13 = 13;
+  optional uint64 reserved_17 = 17;
+  optional uint64 reserved_18 = 18;
+  optional string reserved_19 = 19;
+  optional uint64 reserved_20 = 20;
+}
+
+// Common REST request envelope for the type-301 get_by_conversation call.
+message GetByConversationRequest {
+  // 301 = get_by_conversation.
+  optional uint64 message_type = 1;
+  // Observed as 1 for this endpoint.
+  optional uint64 sub_command = 2;
+  optional string client_version = 3;
+  optional EmptyMessage options = 4;
+  optional uint64 platform_flag = 5;
+  optional uint64 reserved_6 = 6;
+  // Present but empty in current traffic.
+  optional string git_hash = 7;
+  optional GetByConversationRequestPayload payload = 8;
+  // Unlike inbox/send/reaction, the current request body does not include
+  // device_id at field 9 in this client implementation.
+  optional string client_platform = 11;
+  repeated MetadataKV metadata = 15;
+  optional uint64 final_flag = 18;
+}
+
+// Typed payload wrapper for the type-301 request envelope.
+message GetByConversationRequestPayload {
+  optional GetByConversationQuery query = 301;
+}
+
+// Query for one page of messages in a conversation.
+message GetByConversationQuery {
+  optional string conversation_id = 1;
+  // 1 = fetch latest / default direction in current traffic.
+  optional uint64 direction = 2;
+  // Must match the conversation's source_id from the inbox response.
+  optional uint64 source_id = 3;
+  // Observed constant 1 in current traffic.
+  optional uint64 reserved_4 = 4;
+  // Pagination cursor in microseconds. Zero means first page.
+  optional uint64 cursor_ts_us = 5;
+  // Requested page size.
+  optional uint64 count = 6;
+}
+
+// Common response envelope for the type-301 history endpoint.
+message GetByConversationResponse {
+  optional uint64 status = 1;
+  optional GetByConversationResponsePayload payload = 6;
+}
+
+// Typed payload wrapper for history responses.
+message GetByConversationResponsePayload {
+  optional ConversationMessageList conversation = 301;
+}
+
+// Repeated message entries returned by get_by_conversation.
+message ConversationMessageList {
+  repeated ConversationMessageEntry entries = 1;
+}
+
+// Reply / quote attachment (field 18) on chat message bodies.
+//
+// Observed when aweType=703 (reply): field 1 is the referenced message's
+// server_message_id; field 2 is a JSON object with refmsg_content, refmsg_uid,
+// refmsg_sec_uid, refmsg_type, etc. Fields 3, 4, 7 appear in captures but are
+// not fully interpreted here.
+message MessageReplyReference {
+  optional uint64 referenced_server_message_id = 1;
+  optional bytes quoted_context_json = 2;
+  optional uint64 refmsg_type = 3;
+  optional uint64 reserved_4 = 4;
+  optional uint64 refmsg_sender_user_id = 7;
+}
+
+// Localized string wrapper used in several sticker preview text slots.
+message LocalizedText {
+  optional string text = 1;
+}
+
+// Dimensions attached to a sticker asset.
+message StickerAssetSize {
+  optional uint64 width = 1;
+  optional uint64 height = 2;
+}
+
+// Primary downloadable sticker asset.
+message StickerAsset {
+  // Internal CDN object path.
+  optional string path = 1;
+  // Signed absolute URL for fetching the sticker media.
+  optional string url = 2;
+  optional StickerAssetSize size = 5;
+  optional uint64 reserved_7 = 7;
+}
+
+// Human-readable preview strings that accompany a sticker message.
+//
+// Captures commonly show:
+// - field 2: "sent a sticker" / localized equivalent
+// - field 3: "[sticker]" / localized equivalent
+// field 1 exists too, but its semantics are less clear, so we keep a
+// conservative name here.
+message StickerDisplayTexts {
+  optional LocalizedText reserved_1 = 1;
+  optional LocalizedText sent_a_sticker = 2;
+  optional LocalizedText bracketed_sticker = 3;
+}
+
+// Sticker-specific section nested under the outer message row's field 20.
+message StickerMessagePayload {
+  optional StickerAsset asset = 1;
+  optional StickerDisplayTexts display_texts = 2;
+}
+
+// Outer message attachment container. Field 7 carries sticker payloads in the
+// captures observed so far.
+message MessageAttachmentPayload {
+  optional StickerMessagePayload sticker = 7;
+}
+
+// One downloadable variant of a private DM media attachment.
+//
+// Field 1 is polymorphic in current captures: some rows carry the ASCII label
+// ("full", "view", "play", "cover"), while others carry a small embedded
+// message for the preview/thumb slot. We keep it as raw bytes to preserve both
+// shapes without overcommitting to semantics we haven't fully verified yet.
+message PrivateImageVariant {
+  optional bytes label = 1;
+  repeated string url = 2;
+  // JSON metadata blob on observed private_video "play" variants.
+  optional string metadata_json = 3;
+  optional uint64 width = 20;
+  optional uint64 height = 21;
+  optional uint64 duration_ms = 22;
+  optional uint64 reserved_23 = 23;
+}
+
+// Field 24 on chat message rows when message_subtype = "private_image" or
+// "private_video".
+//
+// decrypt_key is the 32-byte AES-256-GCM key rendered as a hex string in
+// current private_image captures. Those image URLs point to encrypted blobs:
+// nonce (12 bytes) || ciphertext || tag (16 bytes). private_video captures use
+// the same outer field but currently leave decrypt_key empty and carry playable
+// video URLs instead.
+message PrivateImageAttachment {
+  optional string path = 1;
+  optional uint64 reserved_2 = 2;
+  optional string decrypt_key = 3;
+  repeated PrivateImageVariant variants = 20;
+}
+
+// Minimal subset of a conversation message entry currently used by the bridge.
+message ConversationMessageEntry {
+  optional string conversation_id = 1;
+  // Server-assigned numeric message ID.
+  optional uint64 server_message_id = 3;
+  // Message send timestamp in microseconds.
+  optional uint64 timestamp_us = 4;
+  // Observed on inner chat rows; required as send body field 3 when posting a reply (aweType 703).
+  optional uint64 send_chain_id = 5;
+  // Numeric sender user ID.
+  optional uint64 sender_user_id = 7;
+  // JSON message blob parsed separately by parseMessageContent.
+  optional bytes content_json = 8;
+  // Field 9: repeated MetadataTag key/value metadata (client_message_id, recall flags, …).
+  repeated MetadataTag tags = 9;
+  // Sender sec_uid (TikTok stable user token string).
+  optional string sender_sec_uid = 14;
+  // Repeated reaction summaries attached to the message.
+  repeated ReactionSummary reactions = 15;
+  // When present, this message is a reply; field 1 targets the parent server_message_id.
+  optional MessageReplyReference message_reply = 18;
+  // Outer attachment payload; field 7 currently carries sticker metadata.
+  optional MessageAttachmentPayload attachment = 20;
+  // Observed as "sticker", "private_image", and "private_video" in current captures.
+  optional string message_subtype = 21;
+  // Private DM media metadata (encrypted image URLs or direct video URLs).
+  optional PrivateImageAttachment private_image = 24;
+  // Pagination cursor carried on the entry; callers use the last one returned.
+  optional uint64 cursor_ts_us = 25;
+}
+
+// Common REST request envelope for the type-100 send-message call.
+message SendRequest {
+  // 100 = send message.
+  optional uint64 message_type = 1;
+  // Observed as 10007 for send.
+  optional uint64 sub_command = 2;
+  optional string client_version = 3;
+  optional EmptyMessage options = 4;
+  optional uint64 platform_flag = 5;
+  optional uint64 reserved_6 = 6;
+  // Present but empty in current traffic.
+  optional string git_hash = 7;
+  optional SendRequestPayload payload = 8;
+  optional string device_id = 9;
+  optional string client_platform = 11;
+  // Includes the tt-ticket-guard metadata required by the web client.
+  repeated MetadataKV metadata = 15;
+  optional uint64 final_flag = 18;
+}
+
+// Typed payload wrapper for the type-100 request envelope.
+message SendRequestPayload {
+  optional SendMessageBody send = 100;
+}
+
+// Inner chat message body for POST /v1/message/send.
+//
+// Current text-message wire shape:
+// - field 1: conversation ID
+// - field 2: 1 (message kind = text)
+// - field 3: 0
+// - field 4: JSON body {"aweType":0,"text":"..."}
+// - field 5: repeated tags
+//   - "s:mentioned_users" with an empty embedded message value
+//   - "s:client_message_id" with the client UUID
+// - field 6: 7
+// - field 7: "deprecated"
+// - field 8: client UUID echoed directly
+// - field 11: present on aweType=703 replies (parent ref + quoted JSON)
+message SendMessageReplyAttachment {
+  optional uint64 referenced_server_message_id = 1;
+  optional bytes reference_payload_json = 2;
+  optional uint64 duplicate_referenced_server_message_id = 3;
+  optional uint64 parent_cursor_ts_us = 4;
+}
+
+// Shared width/height pair used by outbound private-image payloads.
+message SendMediaSize {
+  optional uint64 width = 1;
+  optional uint64 height = 2;
+}
+
+// One encrypted private-image asset reference inside the outbound send payload.
+message SendPrivateImageAsset {
+  optional string path = 1;
+  optional SendMediaSize size = 5;
+  optional string decrypt_key = 6;
+  optional uint64 reserved_7 = 7;
+}
+
+// Localized preview texts shown in TikTok's DM list / quote previews.
+message SendPrivateImageDisplayTexts {
+  optional LocalizedText sender_preview = 1;
+  optional LocalizedText recipient_preview = 2;
+  optional LocalizedText bracketed_preview = 3;
+}
+
+// Additional key/value metadata attached to one outbound private image.
+message SendPrivateImageMetadataEntry {
+  optional string path = 1;
+  repeated MetadataKV properties = 2;
+}
+
+message SendPrivateImageMetadataList {
+  repeated SendPrivateImageMetadataEntry entries = 1;
+}
+
+// Field 13 -> 4 on outbound private-image sends.
+message SendPrivateImageAttachmentPayload {
+  repeated SendPrivateImageAsset assets = 1;
+  optional SendPrivateImageDisplayTexts display_texts = 3;
+  optional SendPrivateImageMetadataList metadata = 200;
+}
+
+// Outbound private video (SendMessageBody.field 13 → attachment.field 5).
+message SendPrivateVideoPoster {
+  optional string uri = 1;
+}
+
+message SendPrivateVideoPrimaryAsset {
+  optional string vid = 1;
+  optional uint64 reserved_2 = 2;
+  optional SendPrivateVideoPoster poster = 3;
+  optional SendMediaSize display_size = 6;
+}
+
+message SendPrivateVideoMetadataInner {
+  optional string vid = 1;
+}
+
+message SendPrivateVideoMetadataEntry {
+  optional SendPrivateVideoMetadataInner inner = 1;
+}
+
+message SendPrivateVideoMetadataList {
+  repeated SendPrivateVideoMetadataEntry entries = 1;
+}
+
+message SendPrivateVideoAttachmentPayload {
+  optional SendPrivateVideoPrimaryAsset primary = 1;
+  optional SendPrivateVideoMetadataList metadata = 200;
+}
+
+message SendAttachmentPayload {
+  optional SendPrivateImageAttachmentPayload private_image = 4;
+  optional SendPrivateVideoAttachmentPayload private_video = 5;
+}
+
+// Compact attachment summary mirrored at field 17 on outbound private-image and private_video sends.
+message SendPrivateImageFileInfo {
+  optional uint64 width = 1;
+  optional uint64 height = 2;
+  // Observed as duration in milliseconds on private_video sends (e.g. 14100).
+  optional uint64 reserved_3 = 3;
+  optional uint64 size = 4;
+  optional string file_name = 5;
+  // Observed on private_video sends (e.g. "h264").
+  optional string video_codec = 6;
+}
+
+message SendPrivateImageAttachmentSummary {
+  optional uint64 reserved_1 = 1;
+  optional string path = 2;
+  optional string decrypt_key = 3;
+  optional SendPrivateImageFileInfo file_info = 10;
+}
+
+message SendMessageBody {
+  optional string conversation_id = 1;
+  optional uint64 message_kind = 2;
+  optional uint64 reserved_3 = 3;
+  optional bytes content_json = 4;
+  repeated MetadataTag tags = 5;
+  optional uint64 reserved_6 = 6;
+  optional string deprecated = 7;
+  // Client-generated UUID v4 used for deduplication across REST and WS paths.
+  optional string client_message_id = 8;
+  optional SendMessageReplyAttachment message_reply = 11;
+  optional SendAttachmentPayload attachment = 13;
+  optional string message_subtype = 14;
+  optional SendPrivateImageAttachmentSummary private_image = 17;
+}
+
+// Send-message response envelope.
+//
+// The server-assigned message ID has been observed in both:
+// - field 6 -> field 100 -> field 1
+// - field 8 -> field 100 -> field 1
+//
+// We model both locations and prefer field 6 when present.
+message SendResponse {
+  optional uint64 status = 1;
+  optional SendResponsePayload primary = 6;
+  optional SendResponsePayload fallback = 8;
+}
+
+// Payload wrapper around the echoed send response.
+message SendResponsePayload {
+  optional SendResponseBody send = 100;
+}
+
+// Minimal send response body.
+message SendResponseBody {
+  // Server-assigned message ID returned as a string.
+  optional string message_id = 1;
+}
+
+// Common REST request envelope for the type-411 typing / input-status call.
+//
+// POST /v1/client/input_status. Current captures use:
+// - message_type 411
+// - sub_command 10100
+// - client_version "1.6.3"
+// - field 7 as a second empty embedded message in addition to field 4
+// - field 8 -> 411 for the endpoint-specific typing body
+message InputStatusRequest {
+  optional uint64 message_type = 1;
+  optional uint64 sub_command = 2;
+  optional string client_version = 3;
+  optional EmptyMessage options = 4;
+  optional uint64 platform_flag = 5;
+  optional uint64 reserved_6 = 6;
+  optional EmptyMessage reserved_7 = 7;
+  optional InputStatusRequestPayload payload = 8;
+  optional string device_id = 9;
+  optional string client_platform = 11;
+  repeated MetadataKV metadata = 15;
+  optional uint64 final_flag = 18;
+}
+
+// Typed payload wrapper for the type-411 request envelope.
+message InputStatusRequestPayload {
+  optional InputStatusBody input_status = 411;
+}
+
+// Inner typing heartbeat body for POST /v1/client/input_status.
+//
+// Observed capture:
+// - field 1: conversation ID
+// - field 2: 1 while the user is actively typing
+// - field 3: conversation source ID reused by other IM APIs
+// - field 4: observed constant 3 in current web traffic
+message InputStatusBody {
+  optional string conversation_id = 1;
+  optional uint64 typing_status = 2;
+  optional uint64 source_id = 3;
+  optional uint64 reserved_4 = 4;
+}
+
+// Common REST request envelope for POST /v3/conversation/mark_read.
+//
+// Current web captures use:
+// - message_type 604
+// - sub_command 1
+// - client_version "1.6.0"
+// - field 8 -> 604 for MarkConversationReadRequestBody
+message MarkConversationReadRequest {
+  optional uint64 message_type = 1;
+  optional uint64 sub_command = 2;
+  optional string client_version = 3;
+  optional EmptyMessage options = 4;
+  optional uint64 platform_flag = 5;
+  optional uint64 reserved_6 = 6;
+  optional string git_hash = 7;
+  optional MarkConversationReadRequestPayload payload = 8;
+  optional string device_id = 9;
+  optional string client_platform = 11;
+  repeated MetadataKV metadata = 15;
+  optional uint64 final_flag = 18;
+}
+
+// Typed payload wrapper for the type-604 mark_read envelope.
+message MarkConversationReadRequestPayload {
+  optional MarkConversationReadRequestBody mark_conversation_read = 604;
+}
+
+// Inner body for POST /v3/conversation/mark_read (field 8 → 604).
+message MarkConversationReadRequestBody {
+  optional string conversation_id = 1;
+  optional uint64 conversation_short_id = 2;
+  optional uint64 conversation_type = 3;
+  // Same meaning as ConversationMessageEntry.timestamp_us (field 4) on the last
+  // message to mark read through — microseconds since epoch.
+  optional uint64 read_message_index = 4;
+  optional uint64 conv_unread_count = 5;
+  optional uint64 total_unread_count = 6;
+}
+
+// Common REST request envelope for the type-701 message-delete call.
+//
+// POST /v1/message/delete — observed without URL query parameters (unlike send
+// and set_property, which attach ztca-dpop and related query keys).
+message DeleteRequest {
+  // 701 = delete message.
+  optional uint64 message_type = 1;
+  // Observed as 10007 for delete (same sub-command as send in current traffic).
+  optional uint64 sub_command = 2;
+  optional string client_version = 3;
+  optional EmptyMessage options = 4;
+  optional uint64 platform_flag = 5;
+  optional uint64 reserved_6 = 6;
+  // Present in some web captures; left empty when unknown.
+  optional string git_hash = 7;
+  optional DeleteRequestPayload payload = 8;
+  optional string device_id = 9;
+  optional string client_platform = 11;
+  repeated MetadataKV metadata = 15;
+  optional uint64 final_flag = 18;
+}
+
+// Typed payload wrapper for the type-701 request envelope.
+message DeleteRequestPayload {
+  optional DeleteMessageBody delete = 701;
+}
+
+// Inner body for POST /v1/message/delete (field 8 → 701).
+message DeleteMessageBody {
+  optional string conversation_id = 1;
+  // Conversation source_id from the inbox / conversation row.
+  optional uint64 source_id = 2;
+  // Observed as 1 in current traffic; semantics not fully confirmed.
+  optional uint64 reserved_3 = 3;
+  // Server-assigned message ID (same as ConversationMessageEntry.server_message_id).
+  optional uint64 server_message_id = 4;
+}
+
+// Delete response: only the outer status code is modeled for now.
+message DeleteMessageResponse {
+  optional uint64 status = 1;
+}
+
+// Common REST request envelope for POST /v1/message/recall (delete for everyone).
+//
+// Wire layout matches the web client's recall call: outer type 702 with
+// sub_command 10025, and the target message nested at field 8 → 702 (same inner
+// fields as DeleteMessageBody). Field 7 is often a detached git revision string
+// in captures; the bridge sends an empty string like other IM endpoints.
+message RecallRequest {
+  // 702 = recall / delete for everyone.
+  optional uint64 message_type = 1;
+  // Observed as 10025 for recall.
+  optional uint64 sub_command = 2;
+  optional string client_version = 3;
+  optional EmptyMessage options = 4;
+  optional uint64 platform_flag = 5;
+  optional uint64 reserved_6 = 6;
+  optional string git_hash = 7;
+  optional RecallRequestPayload payload = 8;
+  optional string device_id = 9;
+  optional string client_platform = 11;
+  repeated MetadataKV metadata = 15;
+  optional uint64 final_flag = 18;
+}
+
+// Typed payload wrapper for the type-702 recall envelope (field 8 → 702).
+message RecallRequestPayload {
+  optional DeleteMessageBody recall = 702;
+}
+
+// Recall response: only the outer status code is modeled for now.
+message RecallMessageResponse {
+  optional uint64 status = 1;
+}
+
+// Common REST request envelope for the type-705 reaction mutation call.
+message ReactionRequest {
+  // 705 = set_property / reaction mutation.
+  optional uint64 message_type = 1;
+  // Observed as 10008 for reactions.
+  optional uint64 sub_command = 2;
+  optional string client_version = 3;
+  optional EmptyMessage options = 4;
+  optional uint64 platform_flag = 5;
+  optional uint64 reserved_6 = 6;
+  // Present but empty in current traffic.
+  optional string git_hash = 7;
+  optional ReactionRequestPayload payload = 8;
+  optional string device_id = 9;
+  optional string client_platform = 11;
+  // Includes tt-ticket-guard metadata, mirroring send.
+  repeated MetadataKV metadata = 15;
+  optional uint64 final_flag = 18;
+}
+
+// Typed payload wrapper for the type-705 request envelope.
+message ReactionRequestPayload {
+  optional ReactionWrapper wrapper = 705;
+}
+
+// Reaction wrapper observed at field 8 -> 705.
+//
+// Field 2 is literally the string "deprecated" in current traffic.
+message ReactionWrapper {
+  optional ReactionBody body = 1;
+  optional string deprecated = 2;
+}
+
+// Inner reaction mutation body.
+message ReactionBody {
+  optional string conversation_id = 1;
+  // Observed constant 1 in current traffic.
+  optional uint64 action_flag = 2;
+  // Conversation source ID from the inbox response.
+  optional uint64 source_id = 3;
+  optional uint64 server_message_id = 4;
+  // Fresh client-generated UUID for the mutation request.
+  optional string client_message_id = 5;
+  // Repeated in the schema, though current requests send a single mutation.
+  repeated ReactionMutation reactions = 6;
+}
+
+// One reaction add/remove mutation.
+//
+// Current wire shape: {1: action, 2: "e:<emoji>", 4: self_user_id}
+message ReactionMutation {
+  // 0 = add, 1 = remove.
+  optional uint64 action = 1;
+  // Encoded as "e:<emoji>" or occasionally "e:<alias>".
+  optional string reaction_key = 2;
+  // Decimal user ID string of the reacting user.
+  optional string self_user_id = 4;
+}
+
+// Reaction summary attached to a fetched message.
+//
+// TikTok commonly emits two entries per logical reaction: one using the real
+// Unicode emoji (for example "e:❤️") and one using a plain-text alias (for
+// example "e:love"). The bridge deduplicates those after parsing.
+message ReactionSummary {
+  optional string reaction_key = 1;
+  optional ReactionUsers users = 2;
+}
+
+// Container for the users who applied one reaction.
+message ReactionUsers {
+  repeated ReactionUser entries = 1;
+}
+
+// One user entry inside a reaction summary.
+message ReactionUser {
+  // Numeric user ID.
+  optional uint64 user_id = 1;
+  optional uint64 timestamp_s = 3;
+  // Preferred decimal-string form of user_id when present.
+  optional string user_id_str = 4;
+  optional uint64 timestamp_us = 6;
+}
+
+// ---------------------------------------------------------------------------
+// WebSocket outer envelope (LZ4 compressed transport)
+// ---------------------------------------------------------------------------
+
+// Top-level binary frame received from the TikTok IM WebSocket.
+//
+// This is *not* the chat payload itself — it is an outer transport envelope.
+// The actual IM protobuf sits inside field 8, optionally LZ4-block-compressed
+// (signalled by field 6 = "__lz4").
+message WebsocketOuterFrame {
+  optional uint64 stream_id = 1;
+  optional uint64 sequence = 2;
+  optional uint64 flag_3 = 3;
+  optional uint64 flag_4 = 4;
+  // Header map (repeated key/value). Examples: x_frontier_msg_id, traceparent.
+  repeated WebsocketHeader headers = 5;
+  // Compression algorithm tag. When this equals "__lz4", field 8 contains an
+  // LZ4 raw-block-compressed protobuf; otherwise field 8 is raw protobuf.
+  optional bytes compression = 6;
+  optional WebsocketMeta meta = 7;
+  // Primary payload: inner protobuf, possibly LZ4-compressed.
+  optional bytes payload = 8;
+  optional bytes trace_9 = 9;
+  optional bytes trace_10 = 10;
+  optional bytes trace_11 = 11;
+  optional uint64 reserved_12 = 12;
+  optional uint64 reserved_13 = 13;
+  optional WebsocketMeta reserved_14 = 14;
+}
+
+// Repeated header entry inside the outer envelope (field 5).
+message WebsocketHeader {
+  optional bytes name = 1;
+  optional bytes value = 2;
+}
+
+// Small nested metadata message (field 7 / 14 of the outer envelope).
+message WebsocketMeta {
+  optional uint64 value = 14;
+}
+
+// ---------------------------------------------------------------------------
+// WebSocket inner protobuf (after LZ4 decompression)
+// ---------------------------------------------------------------------------
+
+// Top-level inner protobuf decoded from the WebSocket payload.
+//
+// Chat events currently arrive under field 8.
+message WebsocketFrame {
+  optional WebsocketEnvelope envelope = 8;
+}
+
+// WebSocket content envelope.
+//
+// field 1 identifies the inner event type. The bridge currently handles:
+// - 500: chat message
+// - 501: read receipt (commands.read_receipt)
+// - 705: property mutation (reactions)
+message WebsocketEnvelope {
+  optional uint64 inner_type = 1;
+  optional WebsocketCommands commands = 6;
+}
+
+// WebSocket command container.
+message WebsocketCommands {
+  optional WebsocketChat chat = 500;
+  // inner_type 501: which message was read, in which conversation.
+  optional WebsocketReadReceipt read_receipt = 501;
+  optional WebsocketTypingIndicator typing_indicator = 510;
+  optional WebsocketPropertyUpdate property_update = 705;
+}
+
+// Read receipt carried by inner_type 501 (field commands.read_receipt).
+// Field meanings are partially inferred from captures; unknown fields may exist.
+message WebsocketReadReceipt {
+  optional string conversation_id = 1;
+  optional uint32 reserved_2 = 2;
+  // Observed scale consistent with Unix microseconds (read cursor time).
+  optional uint64 read_timestamp_us = 3;
+  // In 1:1 captures this matched the trailing numeric segment of conversation_id;
+  // treated as candidate reader / peer id until group chats are verified.
+  optional uint64 peer_or_inbox_id = 5;
+  // Server message id that was read (read-up-to / target).
+  optional uint64 read_server_message_id = 6;
+}
+
+// Typing heartbeat carried by inner_type 510.
+//
+// Current captures suggest TikTok sends this periodically while the remote user
+// is actively typing. The bridge interprets the absence of follow-up heartbeats
+// as "stopped typing" in connector logic rather than on the wire layer.
+message WebsocketTypingIndicator {
+  // Numeric TikTok user ID of the typing sender.
+  optional uint64 sender_user_id = 1;
+  optional string conversation_id = 2;
+  // Conversation source ID reused by history/reaction APIs.
+  optional uint64 conversation_source_id = 3;
+  optional uint64 reserved_4 = 4;
+  optional uint64 reserved_5 = 5;
+  optional uint64 reserved_6 = 6;
+  // Observed scale consistent with Unix milliseconds.
+  optional uint64 create_time_ms = 10;
+}
+
+// WebSocket chat event container.
+message WebsocketChat {
+  optional string conversation_id = 2;
+  optional WebsocketMessageDetail detail = 5;
+}
+
+// Message detail carried by a type-500 WebSocket chat event.
+//
+// This is close to ConversationMessageEntry but not identical: reactions are
+// delivered through different WS events, so they are not modeled here.
+//
+// content_json is usually a chat body (aweType, text, …) but can instead be a
+// command envelope, e.g. {"command_type":2,"conversation_id":"…",
+// "message_id":<uint64>,…} for an unsend/delete notification (message_id is the
+// deleted server message id).
+message WebsocketMessageDetail {
+  optional uint64 server_message_id = 3;
+  optional uint64 timestamp_us = 4;
+  optional uint64 send_chain_id = 5;
+  optional uint64 sender_user_id = 7;
+  // JSON message blob parsed separately by parseMessageContent or command handlers.
+  optional bytes content_json = 8;
+  // Field 9: repeated MetadataTag metadata (same role as ConversationMessageEntry.tags).
+  repeated MetadataTag tags = 9;
+  optional string sender_sec_uid = 14;
+  // Same shape as ConversationMessageEntry.message_reply (reply / quote).
+  optional MessageReplyReference message_reply = 18;
+  // Outer attachment payload; field 7 currently carries sticker metadata.
+  optional MessageAttachmentPayload attachment = 20;
+  // Observed as "sticker", "private_image", and "private_video" in current captures.
+  optional string message_subtype = 21;
+  // Private DM media metadata (encrypted image URLs or direct video URLs).
+  optional PrivateImageAttachment private_image = 24;
+  optional uint64 cursor_ts_us = 25;
+}
+
+// Property-update container carried by inner_type 705.
+//
+// Reactions arrive as s:property_modify in the tag list; the value is a JSON
+// blob describing which emojis were added or removed.
+message WebsocketPropertyUpdate {
+  optional string conversation_id = 1;
+  optional uint64 message_kind = 2;
+  optional uint64 reserved_3 = 3;
+  optional uint64 reserved_4 = 4;
+  optional bytes content_json = 5;
+  // Repeated tag pairs — s:property_modify carries the reaction JSON.
+  repeated MetadataTag tags = 6;
+}

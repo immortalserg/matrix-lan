@@ -1,0 +1,23 @@
+{
+  "as_token": "__SECRET_MATRIX_THREADS_20261119_AS_TOKEN__",
+  "hs_token": "__SECRET_MATRIX_THREADS_20261119_HS_TOKEN__",
+  "id": "matrix-threads-20261119",
+  "namespaces": {
+    "aliases": [
+      {
+        "exclusive": true,
+        "regex": "^#threads_(account|chat)_[a-f0-9]+:__SERVER_RE__$"
+      }
+    ],
+    "rooms": [],
+    "users": [
+      {
+        "exclusive": true,
+        "regex": "^@threads_[a-f0-9]+:__SERVER_RE__$"
+      }
+    ]
+  },
+  "rate_limited": false,
+  "sender_localpart": "threadsbot",
+  "url": "http://matrix-threads:29393"
+}

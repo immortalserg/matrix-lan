@@ -1,0 +1,23 @@
+{
+  "as_token": "__SECRET_MATRIX_OK_20261119_AS_TOKEN__",
+  "hs_token": "__SECRET_MATRIX_OK_20261119_HS_TOKEN__",
+  "id": "matrix-ok-20261119",
+  "namespaces": {
+    "aliases": [
+      {
+        "exclusive": true,
+        "regex": "^#ok_(account|chat)_[a-f0-9]+:__SERVER_RE__$"
+      }
+    ],
+    "rooms": [],
+    "users": [
+      {
+        "exclusive": true,
+        "regex": "^@ok_[a-f0-9]+:__SERVER_RE__$"
+      }
+    ]
+  },
+  "rate_limited": false,
+  "sender_localpart": "okbot",
+  "url": "http://matrix-ok:29393"
+}

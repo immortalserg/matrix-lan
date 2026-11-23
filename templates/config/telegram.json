@@ -1,0 +1,324 @@
+{
+  "network": {
+    "api_id": 0,
+    "api_hash": "__TELEGRAM_API_HASH__",
+    "device_info": {
+      "device_model": "mautrix-telegram",
+      "system_version": null,
+      "app_version": "auto",
+      "lang_code": "en",
+      "system_lang_code": "en"
+    },
+    "animated_sticker": {
+      "target": "gif",
+      "convert_from_webm": false,
+      "args": {
+        "width": 256,
+        "height": 256,
+        "fps": 25
+      }
+    },
+    "member_list": {
+      "max_initial_sync": 10,
+      "sync_broadcast_channels": false,
+      "skip_deleted": true
+    },
+    "ping": {
+      "interval_seconds": 30,
+      "timeout_seconds": 10
+    },
+    "proxy": {
+      "type": "disabled",
+      "address": "127.0.0.1:1080",
+      "username": null,
+      "password": null
+    },
+    "sync": {
+      "update_limit": 100,
+      "create_limit": 15,
+      "login_sync_limit": 15,
+      "direct_chats": true
+    },
+    "takeout": {
+      "dialog_sync": false,
+      "forward_backfill": false,
+      "backward_backfill": false
+    },
+    "max_member_count": 50,
+    "contact_avatars": false,
+    "contact_names": false,
+    "always_custom_emoji_reaction": false,
+    "saved_message_avatar": "mxc://maunium.net/XhhfHoPejeneOngMyBbtyWDk",
+    "always_tombstone_on_supergroup_migration": false,
+    "image_as_file_pixels": 16777216,
+    "disable_view_once": false,
+    "video_url_preview_as_file": false,
+    "bridge_communities": true,
+    "displayname_template": "{{ if .Deleted }}Deleted account {{ .UserID }}{{ else }}{{ .FullName }}{{ end }}"
+  },
+  "bridge": {
+    "command_prefix": "!tg",
+    "personal_filtering_spaces": true,
+    "private_chat_portal_meta": true,
+    "async_events": false,
+    "split_portals": false,
+    "resend_bridge_info": false,
+    "no_bridge_info_state_key": false,
+    "bridge_status_notices": "errors",
+    "transient_state_debounce": "0s",
+    "send_reconnect_wait": "0s",
+    "unknown_error_auto_reconnect": null,
+    "unknown_error_max_auto_reconnects": 10,
+    "bridge_matrix_leave": false,
+    "bridge_notices": false,
+    "tag_only_on_create": true,
+    "only_bridge_tags": [
+      "m.favourite",
+      "m.lowpriority"
+    ],
+    "mute_only_on_create": true,
+    "deduplicate_matrix_messages": false,
+    "portal_event_buffer": 64,
+    "cross_room_replies": false,
+    "revert_failed_state_changes": false,
+    "kick_matrix_users": true,
+    "enable_send_state_requests": false,
+    "phone_numbers_in_profile": false,
+    "view_limited_media": false,
+    "cleanup_on_logout": {
+      "enabled": false,
+      "manual": {
+        "private": "nothing",
+        "relayed": "nothing",
+        "shared_no_users": "nothing",
+        "shared_has_users": "nothing"
+      },
+      "bad_credentials": {
+        "private": "nothing",
+        "relayed": "nothing",
+        "shared_no_users": "nothing",
+        "shared_has_users": "nothing"
+      }
+    },
+    "relay": {
+      "enabled": false,
+      "admin_only": true,
+      "prefer_default": true,
+      "allow_bridge": true,
+      "default_relays": [],
+      "user_distinguishers": [
+        "🟦",
+        "🟣",
+        "🟩",
+        "⭕️",
+        "🔶",
+        "⬛️",
+        "🔵",
+        "🟢"
+      ],
+      "message_formats": {
+        "m.text": "<b>{{ .Sender.DisambiguatedName }}</b>: {{ .Message }}",
+        "m.notice": "<b>{{ .Sender.DisambiguatedName }}</b>: {{ .Message }}",
+        "m.emote": "* <b>{{ .Sender.DisambiguatedName }}</b> {{ .Message }}",
+        "m.file": "<b>{{ .Sender.DisambiguatedName }}</b> sent a file{{ if .Caption }}: {{ .Caption }}{{ end }}",
+        "m.image": "<b>{{ .Sender.DisambiguatedName }}</b> sent an image{{ if .Caption }}: {{ .Caption }}{{ end }}",
+        "m.audio": "<b>{{ .Sender.DisambiguatedName }}</b> sent an audio file{{ if .Caption }}: {{ .Caption }}{{ end }}",
+        "m.video": "<b>{{ .Sender.DisambiguatedName }}</b> sent a video{{ if .Caption }}: {{ .Caption }}{{ end }}",
+        "m.location": "<b>{{ .Sender.DisambiguatedName }}</b> sent a location{{ if .Caption }}: {{ .Caption }}{{ end }}"
+      },
+      "displayname_format": "{{ .DisambiguatedName }}"
+    },
+    "portal_create_filter": {
+      "mode": "deny",
+      "list": [
+        "channel:2085175202",
+        "channel:1368705875",
+        "channel:1708076550",
+        "channel:2099832925",
+        "channel:1723397622",
+        "channel:1874598574",
+        "channel:1824994355",
+        "channel:2080959861",
+        "channel:1622788054",
+        "channel:1218557504",
+        "channel:1754099939",
+        "channel:2374555324",
+        "channel:1431446630",
+        "channel:1541940797",
+        "channel:2524602220",
+        "channel:1178683711",
+        "channel:1862100739",
+        "channel:2979204954",
+        "channel:1580529385",
+        "channel:1282380183",
+        "channel:1298845214",
+        "channel:1150627907",
+        "channel:1393794959",
+        "channel:1227396924",
+        "channel:1515959783",
+        "channel:1786914489",
+        "channel:1630180026",
+        "channel:2082540209",
+        "channel:3907894835"
+      ],
+      "always_deny_from_login": []
+    },
+    "permissions": {
+      "*": "relay",
+      "__SERVER_NAME__": "user",
+      "__MATRIX_OWNER__": "admin"
+    }
+  },
+  "database": {
+    "type": "postgres",
+    "uri": "postgres://telegram:__SECRET_DB_TELEGRAM__@db:5432/telegram?sslmode=disable",
+    "max_open_conns": 5,
+    "max_idle_conns": 1,
+    "max_conn_idle_time": null,
+    "max_conn_lifetime": null
+  },
+  "homeserver": {
+    "address": "http://synapse:8008",
+    "domain": "__SERVER_NAME__",
+    "software": "standard",
+    "status_endpoint": null,
+    "message_send_checkpoint_endpoint": null,
+    "async_media": false,
+    "websocket": false,
+    "ping_interval_seconds": 0,
+    "retry_limit": 4
+  },
+  "appservice": {
+    "address": "http://mautrix-telegram:29317",
+    "public_address": "https://bridge.example.com",
+    "hostname": "0.0.0.0",
+    "port": 29317,
+    "id": "telegram",
+    "bot": {
+      "username": "telegrambot",
+      "displayname": "Telegram bridge bot",
+      "avatar": "mxc://maunium.net/tJCRmUyJDsgRNgqhOgoiHWbX"
+    },
+    "ephemeral_events": true,
+    "async_transactions": false,
+    "as_token": "__SECRET_TELEGRAM_AS_TOKEN__",
+    "hs_token": "__SECRET_TELEGRAM_HS_TOKEN__",
+    "username_template": "telegram_{{.}}"
+  },
+  "matrix": {
+    "message_status_events": true,
+    "delivery_receipts": false,
+    "message_error_notices": true,
+    "sync_direct_chat_list": true,
+    "federate_rooms": false,
+    "upload_file_threshold": 5242880,
+    "ghost_extra_profile_info": false
+  },
+  "analytics": {
+    "token": null,
+    "url": "https://api.segment.io/v1/track",
+    "user_id": null
+  },
+  "provisioning": {
+    "shared_secret": "__SECRET_CHAT_API_TELEGRAM_PROVISIONING_SECRET__",
+    "allow_matrix_auth": true,
+    "debug_endpoints": false,
+    "enable_session_transfers": false,
+    "fail_on_webauthn": false,
+    "request_id_header": "Request-Id",
+    "trust_incoming_request_id": false
+  },
+  "public_media": {
+    "enabled": false,
+    "signing_key": "__SECRET_TELEGRAM_PUBLIC_MEDIA_SIGNING_KEY__",
+    "expiry": 0,
+    "hash_length": 32,
+    "path_prefix": "/_mautrix/publicmedia",
+    "use_database": false
+  },
+  "direct_media": {
+    "enabled": false,
+    "server_name": "discord-media.example.com",
+    "well_known_response": null,
+    "media_id_prefix": null,
+    "allow_proxy": true,
+    "server_key": "ed25519 PtmjWg MY2+nb+j/NtQ3iThflRaRuwrPPlOA0zdaaVhE+rbkcQ"
+  },
+  "backfill": {
+    "enabled": false,
+    "max_initial_messages": 50,
+    "max_catchup_messages": 500,
+    "unread_hours_threshold": 720,
+    "threads": {
+      "max_initial_messages": 50
+    },
+    "queue": {
+      "enabled": false,
+      "manual": false,
+      "batch_size": 100,
+      "batch_delay": 20,
+      "max_batches": -1,
+      "max_batches_override": {}
+    }
+  },
+  "double_puppet": {
+    "servers": {
+      "anotherserver.example.org": "https://matrix.anotherserver.example.org"
+    },
+    "allow_discovery": false,
+    "secrets": {
+      "example.com": "as_token:foobar"
+    }
+  },
+  "encryption": {
+    "allow": false,
+    "default": false,
+    "require": false,
+    "appservice": false,
+    "msc4190": false,
+    "msc4392": false,
+    "self_sign": false,
+    "allow_key_sharing": true,
+    "plaintext_mentions": false,
+    "pickle_key": "kaRzYFhEB3kNeMBeexbvLcL6apBMOTxTFh4vd0j0OeK2NGsgR28RwDj5iz1OFF9l",
+    "delete_keys": {
+      "delete_outbound_on_ack": false,
+      "dont_store_outbound": false,
+      "ratchet_on_decrypt": false,
+      "delete_fully_used_on_decrypt": false,
+      "delete_prev_on_new_session": false,
+      "delete_on_device_delete": false,
+      "periodically_delete_expired": false,
+      "delete_outdated_inbound": false
+    },
+    "verification_levels": {
+      "receive": "unverified",
+      "send": "unverified",
+      "share": "cross-signed-tofu"
+    },
+    "rotation": {
+      "enable_custom": false,
+      "milliseconds": 604800000,
+      "messages": 100,
+      "disable_device_change_key_rotation": false
+    }
+  },
+  "env_config_prefix": null,
+  "logging": {
+    "min_level": "debug",
+    "writers": [
+      {
+        "type": "stdout",
+        "format": "pretty-colored"
+      },
+      {
+        "type": "file",
+        "format": "json",
+        "filename": "./logs/bridge.log",
+        "max_size": 100,
+        "max_backups": 10,
+        "compress": false
+      }
+    ]
+  }
+}

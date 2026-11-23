@@ -1,0 +1,27 @@
+{
+  "as_token": "__SECRET_MATRIX_LAN_PINDUODUO_AS_TOKEN__",
+  "hs_token": "__SECRET_MATRIX_LAN_PINDUODUO_HS_TOKEN__",
+  "id": "matrix-lan-pinduoduo",
+  "namespaces": {
+    "aliases": [
+      {
+        "exclusive": true,
+        "regex": "#pinduoduo_(account|chat)_[0-9a-f]+:__SERVER_RE__"
+      }
+    ],
+    "rooms": [],
+    "users": [
+      {
+        "exclusive": true,
+        "regex": "@pinduoduo_[0-9a-f]+:__SERVER_RE__"
+      },
+      {
+        "exclusive": true,
+        "regex": "@pinduoduobot:__SERVER_RE__"
+      }
+    ]
+  },
+  "rate_limited": false,
+  "sender_localpart": "pinduoduobot",
+  "url": "http://matrix-pinduoduo:29392"
+}

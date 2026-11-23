@@ -1,0 +1,388 @@
+{
+  "matrix-threads": {
+    "image": "matrix-lan-social:media-r18-20261120",
+    "user": "10001:10001",
+    "environment": {
+      "SOCIAL_PLATFORM": "threads",
+      "TZ": "Asia/Ashgabat"
+    },
+    "cap_drop": [
+      "ALL"
+    ],
+    "security_opt": [
+      "no-new-privileges:true"
+    ],
+    "shm_size": "256m",
+    "healthcheck": {
+      "test": [
+        "CMD",
+        "python",
+        "-c",
+        "import urllib.request;urllib.request.urlopen('http://127.0.0.1:29393/health',timeout=4)"
+      ],
+      "interval": "20s",
+      "timeout": "6s",
+      "retries": 3,
+      "start_period": "40s"
+    }
+  },
+  "matrix-ok": {
+    "image": "matrix-lan-social:media-r17-20261120",
+    "user": "10001:10001",
+    "environment": {
+      "SOCIAL_PLATFORM": "ok",
+      "TZ": "Asia/Ashgabat"
+    },
+    "cap_drop": [
+      "ALL"
+    ],
+    "security_opt": [
+      "no-new-privileges:true"
+    ],
+    "shm_size": "256m",
+    "healthcheck": {
+      "test": [
+        "CMD",
+        "python",
+        "-c",
+        "import urllib.request;urllib.request.urlopen('http://127.0.0.1:29393/health',timeout=4)"
+      ],
+      "interval": "20s",
+      "timeout": "6s",
+      "retries": 3,
+      "start_period": "40s"
+    }
+  },
+  "matrix-vk": {
+    "image": "matrix-lan-social:media-r17-20261120",
+    "user": "10001:10001",
+    "environment": {
+      "SOCIAL_PLATFORM": "vk",
+      "TZ": "Asia/Ashgabat"
+    },
+    "cap_drop": [
+      "ALL"
+    ],
+    "security_opt": [
+      "no-new-privileges:true"
+    ],
+    "shm_size": "256m",
+    "healthcheck": {
+      "test": [
+        "CMD",
+        "python",
+        "-c",
+        "import urllib.request;urllib.request.urlopen('http://127.0.0.1:29393/health',timeout=4)"
+      ],
+      "interval": "20s",
+      "timeout": "6s",
+      "retries": 3,
+      "start_period": "40s"
+    }
+  },
+  "matrix-taobao": {
+    "image": "matrix-lan-shopping:recover-r10-20261121",
+    "user": "10001:10001",
+    "environment": {
+      "SHOPPING_PLATFORM": "taobao",
+      "TZ": "Asia/Ashgabat"
+    },
+    "cap_drop": [
+      "ALL"
+    ],
+    "security_opt": [
+      "no-new-privileges:true"
+    ],
+    "shm_size": "256m",
+    "healthcheck": {
+      "test": [
+        "CMD",
+        "python",
+        "-c",
+        "import urllib.request;urllib.request.urlopen('http://127.0.0.1:29392/health',timeout=3)"
+      ],
+      "interval": "20s",
+      "timeout": "5s",
+      "retries": 3,
+      "start_period": "25s"
+    }
+  },
+  "matrix-pinduoduo": {
+    "image": "matrix-lan-shopping:recover-r10-20261121",
+    "user": "10001:10001",
+    "environment": {
+      "SHOPPING_PLATFORM": "pinduoduo",
+      "TZ": "Asia/Ashgabat"
+    },
+    "cap_drop": [
+      "ALL"
+    ],
+    "security_opt": [
+      "no-new-privileges:true"
+    ],
+    "shm_size": "256m",
+    "healthcheck": {
+      "test": [
+        "CMD",
+        "python",
+        "-c",
+        "import urllib.request;urllib.request.urlopen('http://127.0.0.1:29392/health',timeout=3)"
+      ],
+      "interval": "20s",
+      "timeout": "5s",
+      "retries": 3,
+      "start_period": "25s"
+    }
+  },
+  "mautrix-linkedin": {
+    "image": "dock.mau.dev/mautrix/linkedin@sha256:c6d885f92aed640fa95cf573d383e91c6eecab3ce63183bb246efd27852bdca6",
+    "user": "10001:10001",
+    "entrypoint": [
+      "/usr/bin/mautrix-linkedin"
+    ],
+    "command": [
+      "-c",
+      "/data/config.yaml",
+      "-r",
+      "/data/registration.yaml"
+    ],
+    "environment": {
+      "TZ": "Asia/Ashgabat"
+    },
+    "depends_on": {
+      "db": {
+        "condition": "service_started"
+      }
+    },
+    "cap_drop": [
+      "ALL"
+    ],
+    "security_opt": [
+      "no-new-privileges:true"
+    ],
+    "healthcheck": {
+      "test": [
+        "CMD",
+        "wget",
+        "-q",
+        "-O",
+        "/dev/null",
+        "http://127.0.0.1:29341/_matrix/mau/ready"
+      ],
+      "interval": "20s",
+      "timeout": "5s",
+      "retries": 3,
+      "start_period": "45s"
+    }
+  },
+  "matrix-wechat": {
+    "image": "matrix-lan-wechat:media-r9-20261123",
+    "depends_on": {
+      "wechat-native": {
+        "condition": "service_started"
+      }
+    },
+    "user": "10001:10001",
+    "cap_drop": [
+      "ALL"
+    ],
+    "security_opt": [
+      "no-new-privileges:true"
+    ],
+    "environment": {
+      "TZ": "Asia/Ashgabat",
+      "PYTHONUNBUFFERED": "1"
+    },
+    "healthcheck": {
+      "test": [
+        "CMD",
+        "python",
+        "-c",
+        "import urllib.request;urllib.request.urlopen('http://127.0.0.1:29391/health',timeout=3)"
+      ],
+      "interval": "20s",
+      "timeout": "5s",
+      "retries": 3,
+      "start_period": "45s"
+    }
+  },
+  "wechat-native": {
+    "image": "ghcr.io/thisnick/agent-wechat-native@sha256:c89203c1edf82e96ea1a3ccd587060476d3df290641edc351a699ed93a4174a0",
+    "user": "10001:10001",
+    "cap_drop": [
+      "ALL"
+    ],
+    "security_opt": [
+      "no-new-privileges:true"
+    ],
+    "stop_grace_period": "30s"
+  },
+  "mautrix-email": {
+    "image": "matrix-lan-gmail:inbox-filter-r1-20261118",
+    "environment": {
+      "TZ": "Asia/Ashgabat",
+      "MATRIMAIL_CURSOR_DIR": "/data/imap-cursors"
+    },
+    "healthcheck": {
+      "test": [
+        "CMD-SHELL",
+        "bash -c '</dev/tcp/127.0.0.1/29319'"
+      ],
+      "interval": "30s",
+      "timeout": "5s",
+      "retries": 3,
+      "start_period": "40s"
+    }
+  },
+  "matrix-accounts": {
+    "image": "matrix-lan-accounts:grouped-spaces-r1-20261118",
+    "healthcheck": {
+      "test": [
+        "CMD",
+        "python",
+        "-c",
+        "import urllib.request;urllib.request.urlopen(\"http://localhost:29400/healthz\",timeout=5)"
+      ],
+      "interval": "30s",
+      "timeout": "6s",
+      "retries": 3
+    }
+  },
+  "matrix-imo": {
+    "image": "matrix-lan-imo:contacts-r1-20261123",
+    "shm_size": "512m",
+    "healthcheck": {
+      "test": [
+        "CMD",
+        "python",
+        "-c",
+        "import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:29390/healthz\",timeout=5)"
+      ],
+      "interval": "20s",
+      "timeout": "6s",
+      "retries": 3,
+      "start_period": "30s"
+    }
+  },
+  "db": {
+    "image": "postgres:16-alpine",
+    "environment": {
+      "POSTGRES_USER": "postgres",
+      "POSTGRES_PASSWORD": "__SECRET_COMPOSE_DB_ENVIRONMENT_POSTGRES_PASSWORD__",
+      "POSTGRES_DB": "postgres"
+    },
+    "healthcheck": {
+      "test": [
+        "CMD-SHELL",
+        "pg_isready -U postgres -d postgres"
+      ],
+      "interval": "10s",
+      "timeout": "5s",
+      "retries": 10
+    }
+  },
+  "synapse": {
+    "image": "ghcr.io/element-hq/synapse:v1.164.1",
+    "environment": {
+      "PYTHONPATH": "/data/custom_modules",
+      "SYNAPSE_CONFIG_DIR": "/data",
+      "SYNAPSE_CONFIG_PATH": "/data/homeserver.yaml",
+      "UID": "${PUID}",
+      "GID": "${PGID}"
+    },
+    "depends_on": {
+      "db": {
+        "condition": "service_healthy"
+      }
+    }
+  },
+  "element": {
+    "image": "matrix-lan-element:contacts-r1-20261123"
+  },
+  "caddy": {
+    "image": "caddy:2",
+    "depends_on": [
+      "element",
+      "synapse"
+    ]
+  },
+  "mautrix-whatsapp": {
+    "image": "dock.mau.dev/mautrix/whatsapp:v26.10",
+    "depends_on": {
+      "db": {
+        "condition": "service_healthy"
+      },
+      "synapse": {
+        "condition": "service_started"
+      }
+    }
+  },
+  "mautrix-telegram": {
+    "image": "dock.mau.dev/mautrix/telegram:v26.10",
+    "depends_on": {
+      "db": {
+        "condition": "service_healthy"
+      },
+      "synapse": {
+        "condition": "service_started"
+      }
+    }
+  },
+  "mautrix-instagram": {
+    "image": "dock.mau.dev/mautrix/meta:ig-v26.10",
+    "depends_on": {
+      "synapse": {
+        "condition": "service_started"
+      }
+    }
+  },
+  "chat-api": {
+    "image": "matrix-lan-chat-api:system-chat-live-bootstrap-20261123",
+    "init": true,
+    "depends_on": [
+      "synapse",
+      "mautrix-whatsapp",
+      "mautrix-telegram"
+    ],
+    "security_opt": [
+      "no-new-privileges:true"
+    ],
+    "cap_drop": [
+      "ALL"
+    ],
+    "environment": {
+      "MATRIX_HISTORY_CUTOFF_MS": "1795005044000"
+    }
+  },
+  "mautrix-facebook": {
+    "image": "matrix-lan-facebook:mfa-choice-r4-20261118",
+    "depends_on": [
+      "synapse"
+    ],
+    "environment": {
+      "UID": "1337",
+      "GID": "1337"
+    }
+  },
+  "mautrix-twitter": {
+    "image": "matrix-lan-twitter:official-main-20261116",
+    "depends_on": [
+      "synapse"
+    ],
+    "environment": {
+      "UID": "1337",
+      "GID": "1337"
+    }
+  },
+  "mautrix-tiktok": {
+    "image": "matrix-lan-tiktok:session-r1-20261116",
+    "depends_on": [
+      "synapse"
+    ],
+    "environment": {
+      "UID": "1337",
+      "GID": "1337"
+    },
+    "user": "1337:1337"
+  }
+}

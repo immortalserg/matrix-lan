@@ -1,0 +1,22 @@
+{
+  "id": "gmail",
+  "url": "http://mautrix-email:29319",
+  "as_token": "__SECRET_GMAIL_AS_TOKEN__",
+  "hs_token": "__SECRET_GMAIL_HS_TOKEN__",
+  "sender_localpart": "a6kpBobacoHqmntDa7hnTo5kZWOHJaCH",
+  "rate_limited": false,
+  "namespaces": {
+    "users": [
+      {
+        "regex": "^@gmailbot:__SERVER_RE__$",
+        "exclusive": true
+      },
+      {
+        "regex": "^@gmail_.*:__SERVER_RE__$",
+        "exclusive": true
+      }
+    ]
+  },
+  "de.sorunome.msc2409.push_ephemeral": true,
+  "receive_ephemeral": true
+}

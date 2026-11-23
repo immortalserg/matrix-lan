@@ -1,0 +1,88 @@
+{
+  "owner": "__MATRIX_OWNER__",
+  "token": "__OWNER_ACCESS_TOKEN__",
+  "homeserver": "http://synapse:8008",
+  "server_name": "__SERVER_NAME__",
+  "origins": [
+    "__PUBLIC_ORIGIN__",
+    "__PUBLIC_ORIGIN__"
+  ],
+  "bridges": {
+    "whatsapp": {
+      "url": "http://mautrix-whatsapp:29318",
+      "label": "WhatsApp",
+      "bot": "@whatsappbot:__SERVER_NAME__"
+    },
+    "telegram": {
+      "url": "http://mautrix-telegram:29317",
+      "label": "Telegram",
+      "bot": "@telegrambot:__SERVER_NAME__"
+    },
+    "instagram": {
+      "url": "http://mautrix-instagram:29330",
+      "label": "Instagram",
+      "bot": "@instagrambot:__SERVER_NAME__"
+    },
+    "facebook": {
+      "url": "http://mautrix-facebook:29319",
+      "label": "Facebook",
+      "bot": "@facebookbot:__SERVER_NAME__"
+    },
+    "twitter": {
+      "url": "http://mautrix-twitter:29327",
+      "label": "X / Twitter",
+      "bot": "@twitterbot:__SERVER_NAME__"
+    },
+    "tiktok": {
+      "url": "http://mautrix-tiktok:29380",
+      "label": "TikTok",
+      "bot": "@tiktokbot:__SERVER_NAME__"
+    },
+    "imo": {
+      "url": "http://matrix-imo:29390",
+      "label": "IMO",
+      "bot": "@imobot:__SERVER_NAME__"
+    },
+    "email": {
+      "url": "http://mautrix-email:29319",
+      "label": "Gmail",
+      "bot": "@gmailbot:__SERVER_NAME__"
+    },
+    "wechat": {
+      "url": "http://wechat-native:29391",
+      "label": "WeChat",
+      "bot": "@wechatbot:__SERVER_NAME__"
+    },
+    "linkedin": {
+      "url": "http://mautrix-linkedin:29341",
+      "label": "LinkedIn",
+      "bot": "@linkedinbot:__SERVER_NAME__"
+    },
+    "taobao": {
+      "label": "Taobao",
+      "bot": "@taobaobot:__SERVER_NAME__",
+      "url": "http://matrix-taobao:29392"
+    },
+    "pinduoduo": {
+      "label": "Pinduoduo",
+      "bot": "@pinduoduobot:__SERVER_NAME__",
+      "url": "http://matrix-pinduoduo:29392"
+    },
+    "threads": {
+      "label": "Threads",
+      "bot": "@threadsbot:__SERVER_NAME__",
+      "url": "http://matrix-threads:29393"
+    },
+    "ok": {
+      "label": "Одноклассники",
+      "bot": "@okbot:__SERVER_NAME__",
+      "url": "http://matrix-ok:29393"
+    },
+    "vk": {
+      "label": "VK",
+      "bot": "@vkbot:__SERVER_NAME__",
+      "url": "http://matrix-vk:29393"
+    }
+  },
+  "imo_bridge_token_hash": "__IMO_AS_TOKEN_HASH__"
+}

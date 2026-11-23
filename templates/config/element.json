@@ -1,0 +1,17 @@
+{
+  "default_server_config": {
+    "m.homeserver": {
+      "base_url": "__PUBLIC_ORIGIN__",
+      "server_name": "__SERVER_NAME__"
+    }
+  },
+  "disable_custom_urls": true,
+  "disable_guests": true,
+  "brand": "Matrix LAN",
+  "setting_defaults": {
+    "hideJoinLeaves": true,
+    "hideAvatarChanges": true,
+    "hideDisplaynameChanges": true,
+    "hideRedactions": true
+  }
+}

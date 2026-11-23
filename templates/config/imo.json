@@ -1,0 +1,6 @@
+{
+  "owner": "__MATRIX_OWNER__",
+  "server_name": "__SERVER_NAME__",
+  "as_token": "__SECRET_MATRIX_IMO_AS_TOKEN__",
+  "hs_token": "__SECRET_MATRIX_IMO_HS_TOKEN__"
+}

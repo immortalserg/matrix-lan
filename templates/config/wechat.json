@@ -1,0 +1,12 @@
+{
+  "owner": "__MATRIX_OWNER__",
+  "server_name": "__SERVER_NAME__",
+  "homeserver": "http://synapse:8008",
+  "as_token": "__SECRET_MATRIX_WECHAT_AS_TOKEN__",
+  "hs_token": "__SECRET_MATRIX_WECHAT_HS_TOKEN__",
+  "origins": [
+    "__PUBLIC_ORIGIN__",
+    "__PUBLIC_ORIGIN__"
+  ],
+  "native_key_file": "/run/secrets/wechat-api-token"
+}

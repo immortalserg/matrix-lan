@@ -1,0 +1,22 @@
+{
+  "id": "tiktok",
+  "url": "http://mautrix-tiktok:29380",
+  "as_token": "__SECRET_TIKTOK_AS_TOKEN__",
+  "hs_token": "__SECRET_TIKTOK_HS_TOKEN__",
+  "sender_localpart": "BaRu762zBlVAzduczdf9hs4BGbncWSAG",
+  "rate_limited": false,
+  "namespaces": {
+    "users": [
+      {
+        "regex": "^@tiktokbot:__SERVER_RE__$",
+        "exclusive": true
+      },
+      {
+        "regex": "^@tiktok_.*:__SERVER_RE__$",
+        "exclusive": true
+      }
+    ]
+  },
+  "de.sorunome.msc2409.push_ephemeral": true,
+  "receive_ephemeral": true
+}
