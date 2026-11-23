@@ -1,0 +1,5 @@
+# Installer image: Docker CLI and Compose plugin are included in docker:cli.
+FROM docker:27-cli
+RUN apk add --no-cache python3 bash
+WORKDIR /workspace
+ENTRYPOINT ["python3", "/workspace/install.py"]
