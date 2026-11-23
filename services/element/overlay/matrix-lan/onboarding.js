@@ -64,6 +64,26 @@ $("logout").addEventListener("click", async () => {
 });
 async function refresh() {
   const [users, invites] = await Promise.all([api("/api/admin/users"),api("/api/admin/invites")]);
+  let panel = $("bridge-inventory");
+  if (!panel) {
+    panel = document.createElement("section");
+    panel.id = "bridge-inventory";
+    $("admin-content").append(panel);
+  }
+  panel.replaceChildren();
+  const heading = document.createElement("h2");
+  heading.textContent = "Сервисы подключения";
+  panel.append(heading);
+  try {
+    const catalog = await api("/api/admin/bridges");
+    for (const bridge of catalog.bridges) {
+      const row = document.createElement("p");
+      row.textContent = bridge.label + " — " + (!bridge.available ? "Не реализован" : bridge.prepared ? "Подготовлен (работоспособность не проверена)" : "Не подготовлен");
+      panel.append(row);
+    }
+  } catch (error) {
+    panel.append(document.createTextNode("Каталог недоступен: " + error.message));
+  }
   $("users").replaceChildren();
   for (const user of users.users) {
     const li = document.createElement("li");
