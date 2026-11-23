@@ -24,6 +24,35 @@ for ((i=1; i<=$#; i++)); do
   fi
 done
 
+# Destructive test-only lifecycle commands. Keep Git source intact: deleting this
+# script while executing it makes reinstall unreliable. Only the Matrix-LAN
+# Compose project and its runtime directory are removed.
+if [[ "${1:-}" == "reset" || "${1:-}" == "reinstall" ]]; then
+  action="$1"
+  shift
+  [[ "${1:-}" == "--yes" ]] || { echo "Usage: bash docker-install.sh $action --yes [prepare options]" >&2; exit 2; }
+  shift
+  runtime="$ROOT/runtime"
+  [[ "$runtime" != "/" && "$runtime" == "$ROOT/runtime" ]] || exit 2
+  if [[ -f "$runtime/compose.yaml" ]]; then
+    docker compose --project-directory "$runtime" -f "$runtime/compose.yaml" down --volumes --remove-orphans
+  fi
+  docker rm -f matrix-lan-admin >/dev/null 2>&1 || true
+  if [[ -e "$runtime" ]]; then
+    [[ ! -L "$runtime" ]] || { echo "Refusing to remove symlink runtime." >&2; exit 2; }
+    rm -rf -- "$runtime"
+  fi
+  echo "Matrix-LAN runtime and Compose volumes removed; Git working tree retained."
+  if [[ "$action" == "reset" ]]; then
+    [[ $# -eq 0 ]] || { echo "reset accepts no additional options." >&2; exit 2; }
+    exit 0
+  fi
+  # Re-enter the regular installer flow with explicit fresh-install options.
+  bash "$ROOT/docker-install.sh" prepare "$@"
+  bash "$ROOT/docker-install.sh" start
+  exit 0
+fi
+
 IMAGE="matrix-lan-installer:local"
 docker build -t "$IMAGE" - < "$ROOT/Dockerfile.installer"
 
