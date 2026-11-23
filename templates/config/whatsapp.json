@@ -35,7 +35,7 @@
     },
     "history_sync": {
       "max_initial_conversations": -1,
-      "request_full_sync": false,
+      "request_full_sync": true,
       "dispatch_wait": "1m",
       "full_sync_config": {
         "days_limit": null,
@@ -210,16 +210,16 @@
     "server_key": "ed25519 h1j7aw wGMWizbMqNnBNd5OoCPAeCOiUqtpFBFheEozxz1auY0"
   },
   "backfill": {
-    "enabled": false,
-    "max_initial_messages": 50,
+    "enabled": true,
+    "max_initial_messages": 100,
     "max_catchup_messages": 500,
     "unread_hours_threshold": 720,
     "threads": {
       "max_initial_messages": 50
     },
     "queue": {
-      "enabled": false,
-      "manual": false,
+      "enabled": true,
+      "manual": true,
       "batch_size": 100,
       "batch_delay": 20,
       "max_batches": -1,
