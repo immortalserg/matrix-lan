@@ -25,8 +25,8 @@ installer image is built locally as `matrix-lan-installer:local`.
 For a minimal installation:
 
 ```bash
-bash docker-install.sh --runtime /absolute/path/to/matrix-lan-test prepare --core --host localhost --port 19081 --project matrix-lan-test
-bash docker-install.sh --runtime /absolute/path/to/matrix-lan-test start
+bash docker-install.sh --runtime ./runtime-test prepare --core --host localhost --port 19081 --project matrix-lan-test
+bash docker-install.sh --runtime ./runtime-test start
 ```
 
 The `--runtime` directory must be **inside the repository directory** when
