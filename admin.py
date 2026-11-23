@@ -23,16 +23,59 @@ WA_CONFIG = RUNTIME / 'state' / 'whatsapp' / 'config.yaml'
 
 def whatsapp_settings():
     content = WA_CONFIG.read_text()
-    def value(pattern):
-        match = re.search(pattern, content, re.M)
-        if not match:
-            raise ValueError('WhatsApp configuration field missing')
-        return match.group(1)
-    backfill = content.split('\\nbackfill:', 1)
-    if len(backfill) != 2:
-        raise ValueError('WhatsApp backfill section missing')
-    return {
-        'request_full_sync': value(r'^\\s+request_full_sync:\\s*(true|false)\\s*
+    head, sep, tail = content.partition('\nbackfill:')
+    if not sep:
+        raise ValueError('Backfill section missing')
+    full = re.search(r'^\s+request_full_sync:\s*(true|false)\s*$', head, re.M)
+    enabled = re.search(r'^    enabled:\s*(true|false)\s*$', tail, re.M)
+    limit = re.search(r'^    max_initial_messages:\s*(-?\d+)\s*$', tail, re.M)
+    if not all((full, enabled, limit)):
+        raise ValueError('WhatsApp settings missing')
+    return {'request_full_sync': full.group(1) == 'true',
+            'backfill_enabled': enabled.group(1) == 'true',
+            'max_initial_messages': int(limit.group(1))}
+
+def save_whatsapp_settings(data):
+    if type(data.get('request_full_sync')) is not bool or type(data.get('backfill_enabled')) is not bool:
+        raise ValueError('Invalid switches')
+    count = data.get('max_initial_messages')
+    if type(count) is not int or count not in (50, 100, 500, -1):
+        raise ValueError('Invalid message limit')
+    original = WA_CONFIG.read_text()
+    head, sep, tail = original.partition('\nbackfill:')
+    if not sep:
+        raise ValueError('Backfill section missing')
+    def replace_one(source, pattern, value):
+        result, n = re.subn(pattern, lambda m: m.group(1) + value, source, count=1, flags=re.M)
+        if n != 1:
+            raise ValueError('Required configuration field missing')
+        return result
+    head = replace_one(head, r'^(\s+request_full_sync:\s*)(?:true|false)', str(data['request_full_sync']).lower())
+    tail = replace_one(tail, r'^(    enabled:\s*)(?:true|false)', str(data['backfill_enabled']).lower())
+    tail = replace_one(tail, r'^(    max_initial_messages:\s*)-?\d+', str(count))
+    import shutil
+    shutil.copy2(WA_CONFIG, WA_CONFIG.with_suffix('.yaml.bak'))
+    fd, temporary = tempfile.mkstemp(prefix='.config-', dir=WA_CONFIG.parent)
+    try:
+        with os.fdopen(fd, 'w') as out:
+            out.write(head + sep + tail)
+            out.flush()
+            os.fsync(out.fileno())
+        os.chmod(temporary, WA_CONFIG.stat().st_mode & 0o777)
+        os.replace(temporary, WA_CONFIG)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+    proc = subprocess.run(['docker', 'ps', '--filter', 'label=com.docker.compose.service=mautrix-whatsapp',
+                           '--format', '{{.Names}}'], capture_output=True, text=True, timeout=15)
+    names = [n for n in proc.stdout.splitlines() if n.startswith('matrix-lan-') and n.endswith('-mautrix-whatsapp-1')]
+    if proc.returncode or len(names) != 1:
+        return 'Настройки сохранены. Перезапустите WhatsApp-мост вручную.'
+    restart = subprocess.run(['docker', 'restart', names[0]], capture_output=True, text=True, timeout=60)
+    if restart.returncode:
+        return 'Настройки сохранены, но перезапуск не удался.'
+    return 'Настройки сохранены. WhatsApp-мост перезапущен. Для нового запроса полной истории может потребоваться повторная привязка.'
+
 def load_auth():
     if not AUTH.exists():
         raise RuntimeError('Admin credentials missing; run admin-init first.')
