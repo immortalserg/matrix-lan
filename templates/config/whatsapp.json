@@ -56,7 +56,7 @@
     "personal_filtering_spaces": true,
     "private_chat_portal_meta": true,
     "async_events": false,
-    "split_portals": false,
+    "split_portals": true,
     "resend_bridge_info": false,
     "no_bridge_info_state_key": false,
     "bridge_status_notices": "errors",
@@ -129,9 +129,8 @@
       "always_deny_from_login": []
     },
     "permissions": {
-      "*": "relay",
-      "__SERVER_NAME__": "user",
-      "__MATRIX_OWNER__": "admin"
+      "*": "block",
+      "__SERVER_NAME__": "user"
     }
   },
   "database": {
