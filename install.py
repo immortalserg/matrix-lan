@@ -231,6 +231,8 @@ def configure(runtime, settings):
         pg_init.append(f"CREATE ROLE {role} LOGIN PASSWORD '{secret}';")
         pg_init.append(f"CREATE DATABASE {role} OWNER {role} TEMPLATE template0 ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C';")
     pg_init.append((SOURCE / 'authorization' / 'schema.sql').read_text(encoding='utf-8'))
+    pg_init.append('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authorization;')
+    pg_init.append('GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authorization;')
     write(state / 'postgres-init.sql', '\n'.join(pg_init) + '\n', 70, 0o640)
     write(state / 'authorization.env', '\n'.join((
         'MATRIX_LAN_DSN=postgresql://authorization:' + tokens['__SECRET_DB_AUTHORIZATION__'] + '@db:5432/postgres',
