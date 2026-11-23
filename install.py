@@ -272,6 +272,8 @@ def compose_spec(settings, tokens):
     services['synapse']['volumes'] = ['./state/synapse:/data', './build/synapse:/data/custom_modules:ro']
     services['element']['volumes'] = ['./state/element.json:/app/config.json:ro']
     services['element']['environment'] = {'ELEMENT_WEB_PORT': '80'}
+    if 'authorization' in services:
+        services['caddy'].setdefault('depends_on', []).append('authorization')
     services['caddy']['ports'] = [f'{settings["bind"]}:{settings["port"]}:18443']
     services['caddy']['volumes'] = ['./state/Caddyfile:/etc/caddy/Caddyfile:ro', 'caddy_data:/data', 'caddy_config:/config']
     for bridge in GO_BRIDGES:
