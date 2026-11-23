@@ -1,0 +1,3 @@
+# Installer needs only Dockerfile; project source is bind-mounted at runtime.
+**
+!Dockerfile.installer
