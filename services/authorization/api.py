@@ -129,13 +129,16 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
-        if path not in ("/api/setup/status", "/api/admin/users", "/api/admin/invites"):
+        if path not in ("/api/setup/status", "/api/admin/users", "/api/admin/invites", "/api/admin/bridges"):
             return self.send_json(404, {"error": "not_found"})
         try:
             with psycopg2.connect(DSN) as conn:
                 if path == "/api/setup/status":
                     return self.send_json(200, {"initialized": is_bootstrapped(conn)})
                 self.superuser(conn)
+                if path == "/api/admin/bridges":
+                    with open("/app/bridge-catalog.json", encoding="utf-8") as catalog:
+                        return self.send_json(200, json.load(catalog))
                 with conn.cursor() as cur:
                     if path == "/api/admin/users":
                         cur.execute("SELECT mxid,role,created_at FROM matrix_lan_users ORDER BY created_at")
