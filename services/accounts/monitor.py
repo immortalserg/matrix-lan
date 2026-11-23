@@ -22,12 +22,13 @@ def call(url,token,method='GET',body=None):
   except Exception:return e.code,{}
 
 class Monitor:
- def __init__(self,config):
+ def __init__(self,config,directory=DATA):
+  self.data=directory
   self.c=config;self.lock=threading.Lock();self.refresh_lock=threading.Lock();self.last_start=0;self.auth={};self.stop=threading.Event();self.refresh_pending=False;self.last_reconcile=0
   self.snapshot={'accounts':[],'platforms':{},'checked_at':0,'interval_seconds':30,'checking':True}
-  self.lifecycle=AccountLifecycle(self,DATA)
-  self.grouping=AccountGrouping(self,DATA)
-  f=DATA/'snapshot.json'
+  self.lifecycle=AccountLifecycle(self,self.data)
+  self.grouping=AccountGrouping(self,self.data)
+  f=self.data/'snapshot.json'
   if f.exists():
    try:self.snapshot=json.loads(f.read_text());self.snapshot['checking']=True
    except Exception:pass
@@ -185,7 +186,7 @@ class Monitor:
    snapshot={'accounts':rows,'platforms':platforms,'checked_at':time.time(),'interval_seconds':30,'checking':False,'grouping':grouping}
    with self.lock:
     self.snapshot=snapshot
-    temp=DATA/'snapshot.tmp';temp.write_text(json.dumps(snapshot,ensure_ascii=False));os.replace(temp,DATA/'snapshot.json')
+    temp=self.data/'snapshot.tmp';temp.write_text(json.dumps(snapshot,ensure_ascii=False));os.replace(temp,self.data/'snapshot.json')
   finally:self.refresh_lock.release()
  def worker(self):
   while not self.stop.is_set():
@@ -207,7 +208,7 @@ class Monitor:
     with self.lock:self.refresh_pending=False
   threading.Thread(target=requested,daemon=True).start()
  def update_pending(self,action):
-  path=DATA/'pending-onboarding.json'
+  path=self.data/'pending-onboarding.json'
   with self.lock:
    pending={}
    if path.exists():
@@ -232,7 +233,7 @@ class Monitor:
  def read(self):
   with self.lock:result=json.loads(json.dumps(self.snapshot))
   now=time.time();result['pending_logins']={}
-  pending=DATA/'pending-onboarding.json'
+  pending=self.data/'pending-onboarding.json'
   if pending.exists():
    try:result['pending_logins']={platform:item['step'] for platform,item in json.loads(pending.read_text()).items() if platform in self.c['bridges'] and item.get('expires_at',0)>now}
    except Exception:pass
@@ -267,6 +268,29 @@ class Monitor:
   self.matrix('/_matrix/client/v3/rooms/'+q(sid)+'/state/m.space.child/'+q(room),'PUT',{'via':[self.c['server_name']],'suggested':False})
   return 200,{'space_room':sid}
 
+class UserMonitors:
+ """Resolve Matrix identity before selecting any account state."""
+ def __init__(self,config):
+  self.config=config;self.lock=threading.Lock();self.users={}
+ def resolve(self,token,user,origin):
+  if origin and origin not in self.config['origins']:return 403,None
+  if not token:return 401,None
+  status,identity=call(self.config['homeserver']+'/_matrix/client/v3/account/whoami',token)
+  if status!=200:return 401,None
+  mxid=identity.get('user_id')
+  if not mxid or mxid!=user or not mxid.endswith(':'+self.config['server_name']):return 403,None
+  with self.lock:
+   monitor=self.users.get(mxid)
+   if monitor is None:
+    directory=DATA/'users'/hashlib.sha256(mxid.encode()).hexdigest()
+    directory.mkdir(mode=0o700,parents=True,exist_ok=True)
+    config=dict(self.config,owner=mxid,token=token)
+    monitor=Monitor(config,directory)
+    monitor.notifier=Notifier(directory,monitor.read,config['bridges'])
+    self.users[mxid]=monitor
+   else:monitor.c['token']=token
+  return 200,monitor
+
 class Handler(BaseHTTPRequestHandler):
  def log_message(self,*args):pass
  def reply(self,status,data):
@@ -280,38 +304,40 @@ class Handler(BaseHTTPRequestHandler):
    if size<1 or size>4096:return self.reply(400,{'error':'Invalid request'})
    try:payload=json.loads(self.rfile.read(size))
    except Exception:return self.reply(400,{'error':'Invalid JSON'})
-   status,result=self.server.monitor.attach_imo(token,payload);return self.reply(status,result)
-  status=self.server.monitor.authorize(token,parse_qs(path.query).get('user_id',[''])[0],self.headers.get('Origin'))
+   return self.reply(503,{'error':'Legacy IMO callback disabled pending user routing'})
+  status,monitor=self.server.registry.resolve(token,parse_qs(path.query).get('user_id',[''])[0],self.headers.get('Origin'))
   if status!=200:return self.reply(status,{'error':'Недостаточно прав' if status==403 else 'Требуется вход в Matrix'})
   if path.path=='/v1/accounts/delete' and self.command=='POST':
    size=int(self.headers.get('Content-Length','0'))
    if size<1 or size>2048:return self.reply(400,{'error':'Неверный запрос удаления'})
    try:
-    payload=json.loads(self.rfile.read(size));result=self.server.monitor.lifecycle.delete(payload)
+    payload=json.loads(self.rfile.read(size));result=monitor.lifecycle.delete(payload)
    except ValueError as e:return self.reply(400,{'error':str(e)})
    except Exception:return self.reply(409,{'error':'Удаление не подтверждено. Проверьте подключение и повторите попытку.'})
    return self.reply(200,result)
   if path.path=='/v1/msb-cbmrs/settings' and self.command=='GET':
-   result=self.server.monitor.notifier.settings()
-   result['accounts']=[{k:a.get(k) for k in ['key','platform','login_id','name','profile_name','phone','username','color','state','status_text','provider_error','diagnostics','deletion_pending','deletion_error']} for a in self.server.monitor.read()['accounts']]
+   result=monitor.notifier.settings()
+   result['accounts']=[{k:a.get(k) for k in ['key','platform','login_id','name','profile_name','phone','username','color','state','status_text','provider_error','diagnostics','deletion_pending','deletion_error']} for a in monitor.read()['accounts']]
    return self.reply(200,result)
   if path.path in ['/v1/msb-cbmrs/settings','/v1/msb-cbmrs/test'] and self.command=='POST':
    size=int(self.headers.get('Content-Length','0'))
    if size<0 or size>131072:return self.reply(400,{'error':'Слишком большой запрос'})
    try:
     value=json.loads(self.rfile.read(size)) if size else {}
-    result=self.server.monitor.notifier.test() if path.path.endswith('/test') else self.server.monitor.notifier.update(value)
+    result=monitor.notifier.test() if path.path.endswith('/test') else monitor.notifier.update(value)
    except (ValueError,TypeError):return self.reply(400,{'error':'Проверьте адрес API, интервалы, ключ и подписи аккаунтов'})
    return self.reply(202 if path.path.endswith('/test') else 200,result)
-  if path.path=='/v1/accounts' and self.command=='GET':return self.reply(200,self.server.monitor.read())
+  if path.path=='/v1/accounts' and self.command=='GET':
+   if time.monotonic()-monitor.last_start>=30:monitor.request_refresh()
+   return self.reply(200,monitor.read())
   if path.path=='/v1/refresh' and self.command=='POST':
    size=int(self.headers.get('Content-Length','0'))
    if size>32768:return self.reply(400,{'error':'Invalid request'})
    if size:
     try:action=json.loads(self.rfile.read(size))
     except Exception:return self.reply(400,{'error':'Invalid JSON'})
-    if action.get('pending_login') or action.get('clear_pending_login'):self.server.monitor.update_pending(action)
-   self.server.monitor.request_refresh()
+    if action.get('pending_login') or action.get('clear_pending_login'):monitor.update_pending(action)
+   monitor.request_refresh()
    return self.reply(202,{'checking':True})
   self.reply(404,{'error':'Не найдено'})
  def do_GET(self):
@@ -321,8 +347,5 @@ class Handler(BaseHTTPRequestHandler):
  def do_DELETE(self):self.reply(405,{'error':'Метод запрещён'})
 
 if __name__=='__main__':
- DATA.mkdir(exist_ok=True);config=json.loads((DATA/'config.json').read_text());monitor=Monitor(config)
- monitor.notifier=Notifier(DATA,monitor.read,config['bridges'])
- threading.Thread(target=monitor.notifier.worker,daemon=True).start()
- threading.Thread(target=monitor.worker,daemon=True).start()
- server=ThreadingHTTPServer(('0.0.0.0',29400),Handler);server.monitor=monitor;server.serve_forever()
+ DATA.mkdir(exist_ok=True);config=json.loads((DATA/'config.json').read_text())
+ server=ThreadingHTTPServer(('0.0.0.0',29400),Handler);server.registry=UserMonitors(config);server.serve_forever()
