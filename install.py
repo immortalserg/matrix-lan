@@ -312,26 +312,17 @@ print(json.dumps({"access_token":result["access_token"]}))
 
 
 def start(runtime, settings, auth_file):
+    """Start infrastructure without manufacturing a Matrix user.
+
+    Registration is intentionally disabled in Synapse until the invitation
+    registration backend is wired into the web UI. Do not create an owner here.
+    """
     compose(runtime, 'config', '--quiet')
-    compose(runtime, 'up', '-d', 'db', 'synapse')
-    if not settings['owner_token']:
-        for attempt in range(60):
-            proc = subprocess.run(['docker', 'compose', '--project-directory', str(runtime), '-f', str(runtime/'compose.yaml'),
-                                   'exec', '-T', 'synapse', 'python', '-c', BOOTSTRAP],
-                                  input=json.dumps([settings['owner'], settings['password'], settings['secrets']['__SECRET_SYNAPSE_REGISTRATION_SHARED_SECRET__']]),
-                                  capture_output=True, text=True)
-            if proc.returncode == 0:
-                settings['owner_token'] = json.loads(proc.stdout)['access_token']
-                write(auth_file, settings)
-                configure(runtime, settings)
-                break
-            time.sleep(2)
-        else:
-            raise RuntimeError('Synapse did not initialize the owner. Inspect db and synapse logs.')
-    compose(runtime, 'up', '-d', '--build')
+    compose(runtime, 'up', '-d', 'db', 'synapse', 'element', 'caddy')
     print(f'Open https://{settings["host"]}:{settings["port"]}/')
-    runtime_option = '' if runtime == ROOT/'runtime' else ' --runtime ' + shlex.quote(str(runtime))
-    print(f'Login @{settings["owner"]}:{settings["host"]}. Read the initial password with: sudo python3 install.py{runtime_option} password')
+    print('Infrastructure started. Web-first registration backend is not yet enabled.')
+    print('No Matrix user or superuser has been created.')
+
 
 
 def enable_bridge(runtime, settings, auth_file, bridge, config_path=None):
@@ -395,7 +386,7 @@ def main():
     p.add_argument('--host', default='localhost')
     p.add_argument('--bind', default='127.0.0.1')
     p.add_argument('--port', type=int, default=18081)
-    p.add_argument('--owner', default='owner')
+    p.add_argument('--owner', default='owner', help='Legacy bridge identifier only; does not create a user.')
     p.add_argument('--project', default='matrix-lan-clean')
     p.add_argument('--core', action='store_true')
     p.add_argument('--telegram-config', type=Path)
