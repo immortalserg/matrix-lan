@@ -384,5 +384,27 @@
       "GID": "1337"
     },
     "user": "1337:1337"
+  },
+  "authorization": {
+    "build": "./build/authorization",
+    "image": "matrix-lan-authorization:local",
+    "depends_on": {
+      "db": {
+        "condition": "service_healthy"
+      },
+      "synapse": {
+        "condition": "service_started"
+      }
+    },
+    "env_file": [
+      "./state/authorization.env"
+    ],
+    "restart": "unless-stopped",
+    "security_opt": [
+      "no-new-privileges:true"
+    ],
+    "cap_drop": [
+      "ALL"
+    ]
   }
 }
