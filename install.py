@@ -116,7 +116,7 @@ def choose_setup(args):
     telegram = credentials(args.telegram_config)
     env = load(TEMPLATES / 'services.json')
     extra = [service for service in env if service not in CORE and (service != 'mautrix-telegram' or telegram)]
-    selected = list(CORE) + ([] if args.core else extra)
+    selected = list(CORE) + (['mautrix-whatsapp', 'matrix-accounts', 'chat-api'] if args.whatsapp_test else [] if args.core else extra)
     secret_keys = set()
     for template in TEMPLATES.rglob('*'):
         if template.is_file():
@@ -214,6 +214,8 @@ def configure(runtime, settings):
         if 'matrix-' + name in settings['services']:
             directory = state / name
             state_directory(directory, uid)
+            if name == 'accounts':
+                config[name]['bridges'] = {key: value for key, value in config[name]['bridges'].items() if ('mautrix-' + key in settings['services'] or 'matrix-' + key in settings['services'])}
             write(directory / 'config.json', config[name], uid)
     if 'wechat-native' in settings['services']:
         for directory in ('wechat-native', 'wechat-cache'):
@@ -400,7 +402,9 @@ def main():
     p.add_argument('--port', type=int, default=18081)
     p.add_argument('--owner', default='owner', help='Legacy bridge identifier only; does not create a user.')
     p.add_argument('--project', default='matrix-lan-clean')
-    p.add_argument('--core', action='store_true')
+    mode = p.add_mutually_exclusive_group()
+    mode.add_argument('--core', action='store_true')
+    mode.add_argument('--whatsapp-test', action='store_true', help='Prepare core, WhatsApp and account APIs for integration testing.')
     p.add_argument('--telegram-config', type=Path)
     p.add_argument('--cbmrs-origin', default='')
     for action in ('start', 'status', 'stop', 'password', 'ca', 'bridge-catalog'):
