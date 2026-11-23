@@ -1,4 +1,4 @@
-"""Matrix-LAN onboarding HTTP service (standalone, not yet routed by Caddy).
+"""Matrix-LAN onboarding HTTP service.
 
 Requires psycopg2 and MATRIX_LAN_DSN, SYNAPSE_REGISTRATION_SECRET,
 MATRIX_SERVER_NAME. Synapse public registration remains disabled.
@@ -60,7 +60,7 @@ def register_synapse(username, password):
     if status != 200:
         raise RegistrationError("Synapse registration unavailable")
     nonce = nonce_data["nonce"]
-    mac = hmac.new(SECRET.encode(), "\\0".join(
+    mac = hmac.new(SECRET.encode(), "\0".join(
         (nonce, username, password, "notadmin")
     ).encode(), hashlib.sha1).hexdigest()
     status, data = request("/_synapse/admin/v1/register", {
@@ -106,8 +106,11 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if urlsplit(self.path).path != "/api/setup/status":
             return self.send_json(404, {"error": "not_found"})
-        with psycopg2.connect(DSN) as conn:
-            self.send_json(200, {"initialized": is_bootstrapped(conn)})
+        try:
+            with psycopg2.connect(DSN) as conn:
+                self.send_json(200, {"initialized": is_bootstrapped(conn)})
+        except psycopg2.Error:
+            self.send_json(503, {"error": "database_unavailable"})
 
     def do_DELETE(self):
         match = re.fullmatch(r"/api/admin/invites/([1-9][0-9]*)", urlsplit(self.path).path)
@@ -185,8 +188,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(400, {"error": str(exc)})
         except PermissionError:
             self.send_json(403, {"error": "forbidden"})
-        except psycopg2.Error:
-            self.send_json(503, {"error": "database_unavailable"})
+        except (psycopg2.Error, OSError):
+            self.send_json(503, {"error": "backend_unavailable"})
 
 
 if __name__ == "__main__":
