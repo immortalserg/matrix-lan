@@ -79,7 +79,7 @@ async function refresh() {
       const previous = user.role;
       if (!confirm("Изменить роль " + user.mxid + " на " + select.value + "?")) {select.value=previous;return;}
       try {
-        await api("/api/admin/users/" + encodeURIComponent(user.mxid) + "/role",
+        await api("/api/admin/users/" + user.mxid + "/role",
           {method:"PATCH",body:JSON.stringify({role:select.value})});
         user.role = select.value;
         notice("Роль изменена.");
