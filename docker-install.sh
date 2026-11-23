@@ -14,6 +14,16 @@ if [[ ! -S /var/run/docker.sock ]]; then
   exit 1
 fi
 
+for ((i=1; i<=$#; i++)); do
+  if [[ "${!i}" == "--runtime" ]]; then
+    next=$((i+1))
+    if (( next > $# )); then echo '--runtime requires a path' >&2; exit 2; fi
+    runtime="${!next}"
+    [[ "$runtime" == /* ]] || runtime="$ROOT/$runtime"
+    case "$runtime/" in "$ROOT/"*) ;; *) echo '--runtime must be inside the project directory.' >&2; exit 2 ;; esac
+  fi
+done
+
 IMAGE="matrix-lan-installer:local"
 docker build -f "$ROOT/Dockerfile.installer" -t "$IMAGE" "$ROOT"
 
@@ -24,4 +34,4 @@ docker run --rm --user 0:0 \
   -v "$ROOT:$ROOT" \
   -w "$ROOT" \
   --entrypoint python3 \
-  "$IMAGE" "$ROOT/install.py" "${@:-}"
+  "$IMAGE" "$ROOT/install.py" "$@"
