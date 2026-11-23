@@ -330,10 +330,10 @@ def start(runtime, settings, auth_file):
     registration backend is wired into the web UI. Do not create an owner here.
     """
     compose(runtime, 'config', '--quiet')
-    compose(runtime, 'up', '-d', 'db', 'synapse', 'element', 'caddy', 'authorization')
+    compose(runtime, 'up', '-d', '--build')
     print(f'Open https://{settings["host"]}:{settings["port"]}/')
-    print('Authorization API started; web UI and failure recovery are not yet ready.')
-    print('No Matrix user or superuser has been created.')
+    print('Configured services started. Register or sign in from the main web interface.')
+    print('Existing Matrix accounts are preserved; no owner is created automatically.')
 
 
 
