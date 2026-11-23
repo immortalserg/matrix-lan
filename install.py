@@ -237,6 +237,7 @@ def configure(runtime, settings):
     pg_init.append('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO "authorization";')
     pg_init.append('GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO "authorization";')
     write(state / 'postgres-init.sql', '\n'.join(pg_init) + '\n', 70, 0o640)
+    write(state / 'bridge-catalog.json', bridge_catalog(runtime, settings), mode=0o644)
     write(state / 'authorization.env', '\n'.join((
         'MATRIX_LAN_DSN=postgresql://authorization:' + tokens['__SECRET_DB_AUTHORIZATION__'] + '@db:5432/postgres',
         'SYNAPSE_REGISTRATION_SECRET=' + tokens['__SECRET_SYNAPSE_REGISTRATION_SHARED_SECRET__'],
@@ -276,6 +277,7 @@ def compose_spec(settings, tokens):
     services['element']['volumes'] = ['./state/element.json:/app/config.json:ro']
     services['element']['environment'] = {'ELEMENT_WEB_PORT': '80'}
     if 'authorization' in services:
+        services['authorization']['volumes'] = ['./state/bridge-catalog.json:/app/bridge-catalog.json:ro']
         services['caddy'].setdefault('depends_on', []).append('authorization')
     services['caddy']['ports'] = [f'{settings["bind"]}:{settings["port"]}:18443']
     services['caddy']['volumes'] = ['./state/Caddyfile:/etc/caddy/Caddyfile:ro', 'caddy_data:/data', 'caddy_config:/config']
