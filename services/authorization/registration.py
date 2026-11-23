@@ -132,3 +132,42 @@ def revoke_invite(conn, actor_mxid, invite_id):
             (invite_id,),
         )
         return cur.rowcount == 1
+
+
+def change_role(conn, actor_mxid, target_mxid, new_role):
+    """Change an existing user's role, preserving at least one superuser.
+
+    The advisory lock serializes all role transitions, preventing concurrent
+    demotions from independently observing another superuser.
+    """
+    if new_role not in ("user", "admin", "superuser"):
+        raise RegistrationError("Invalid role")
+    if not isinstance(target_mxid, str) or not target_mxid.startswith("@"):
+        raise RegistrationError("Invalid Matrix user ID")
+    with conn.cursor() as cur:
+        _lock(cur)
+        cur.execute("SELECT role FROM matrix_lan_users WHERE mxid=%s FOR UPDATE", (actor_mxid,))
+        actor = cur.fetchone()
+        if not actor or actor[0] != "superuser":
+            raise PermissionError("Only a superuser can assign roles")
+        cur.execute("SELECT role FROM matrix_lan_users WHERE mxid=%s FOR UPDATE", (target_mxid,))
+        target = cur.fetchone()
+        if not target:
+            raise RegistrationError("User not found")
+        old_role = target[0]
+        if old_role == new_role:
+            return False
+        if old_role == "superuser" and new_role != "superuser":
+            cur.execute("SELECT COUNT(*) FROM matrix_lan_users WHERE role='superuser'")
+            if cur.fetchone()[0] <= 1:
+                raise RegistrationError("Cannot demote the last superuser")
+        cur.execute(
+            "UPDATE matrix_lan_users SET role=%s, updated_at=now() WHERE mxid=%s",
+            (new_role, target_mxid),
+        )
+        cur.execute(
+            "INSERT INTO matrix_lan_audit(actor_mxid,target_mxid,action,old_role,new_role) "
+            "VALUES (%s,%s,'role.change',%s,%s)",
+            (actor_mxid, target_mxid, old_role, new_role),
+        )
+        return True
