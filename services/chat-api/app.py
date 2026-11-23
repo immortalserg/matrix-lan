@@ -73,11 +73,6 @@ WHATSAPP_ACCOUNT_LABELS = [
 _DIRECT_DATA_LOCK = threading.Lock()
 _ROOM_NAME_LOCK = threading.Lock()
 
-if not API_TOKEN or not MATRIX_ACCESS_TOKEN:
-    raise SystemExit("API_BEARER_TOKEN and MATRIX_ACCESS_TOKEN must be set")
-if not MATRIX_USER_ID.startswith("@") or ":" not in MATRIX_USER_ID:
-    raise SystemExit("MATRIX_USER_ID must be a full Matrix user ID")
-
 _rate_lock = threading.Lock()
 # A busy history mirror must not consume the slots for outgoing messages.
 _recent_reads: deque[float] = deque()
@@ -806,8 +801,45 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def user_accounts(self, parsed):
+        token = self.headers.get("Authorization", "")
+        if not token.startswith("Bearer ") or not token[7:]:
+            self.send_json(401, {"error": "unauthorized"})
+            return
+        platform = parse_qs(parsed.query).get("platform", [""])[0]
+        if platform != "whatsapp":
+            self.send_json(503, {"error": "platform_pending_multi_user_migration"})
+            return
+        try:
+            status, identity = json_request(MATRIX_BASE_URL + "/_matrix/client/v3/account/whoami", "GET", {"Authorization": token})
+            if status != 200:
+                self.send_json(401, {"error": "unauthorized"})
+                return
+            mxid = identity.get("user_id", "")
+            if not isinstance(mxid, str) or not mxid.startswith("@") or mxid.split(":", 1)[-1] != MATRIX_USER_ID.split(":", 1)[-1]:
+                self.send_json(403, {"error": "forbidden"})
+                return
+            bridge = BRIDGES[platform]
+            status, data = json_request(bridge["base_url"] + "/_matrix/provision/v3/whoami?" + urlencode({"user_id": mxid}), "GET", {"Authorization": token})
+            if status != 200:
+                self.send_json(502, {"error": "bridge_unavailable"})
+                return
+            accounts = [{"login_id": row["id"], "name": row.get("name") or "WhatsApp", "status": (row.get("state") or {}).get("state_event", "UNKNOWN")} for row in data.get("logins", []) if isinstance(row, dict) and isinstance(row.get("id"), str)]
+            self.send_json(200, {"platform": platform, "accounts": accounts})
+        except UpstreamError as exc:
+            self.send_json(exc.status, {"error": exc.code})
+
     def do_GET(self) -> None:
         parsed = urlsplit(self.path)
+        if parsed.path == "/api/healthz":
+            self.send_json(200, {"status": "ok", "mode": "multi-user-migration"})
+            return
+        if not MATRIX_ACCESS_TOKEN:
+            if parsed.path != "/api/v1/accounts":
+                self.send_json(503, {"error": "endpoint_pending_multi_user_migration"})
+                return
+            self.user_accounts(parsed)
+            return
         if chat_sync.handle(self,parsed,sys.modules[__name__]):
             return
         if chat_media.handle(self, "GET", parsed, sys.modules[__name__]):
@@ -961,6 +993,9 @@ class Handler(BaseHTTPRequestHandler):
         })
 
     def do_POST(self) -> None:
+        if not MATRIX_ACCESS_TOKEN:
+            self.send_json(503, {"error": "endpoint_pending_multi_user_migration"})
+            return
         parsed = urlsplit(self.path)
         if contact_search.handle(self, "POST", parsed, sys.modules[__name__]):
             return
@@ -1150,5 +1185,5 @@ class Server(ThreadingHTTPServer):
 
 if __name__ == "__main__":
     print(f"LAN Chat API listening on {HOST}:{PORT}", flush=True)
-    threading.Thread(target=invite_sync_worker, name="matrix-invite-watcher", daemon=True).start()
+    # Legacy owner watcher must not run in a multi-user installation.
     Server((HOST, PORT), Handler).serve_forever()
