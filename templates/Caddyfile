@@ -366,6 +366,22 @@ https://__SERVER_NAME__:18443 {
         }
     }
 
+    # Onboarding is routed to the dedicated authorization backend, not the
+    # legacy single-owner chat adapter. Preserve paths for the API handler.
+    @onboarding path /api/setup/* /api/auth/register /api/admin/invites /api/admin/invites/*
+    handle @onboarding {
+        @onboarding_bad_origin {
+            header Origin *
+            not header_regexp Origin ^https://__SERVER_RE__:(18081|18008)$
+        }
+        route {
+            respond @onboarding_bad_origin 403
+            reverse_proxy authorization:8081 {
+                header_down Cache-Control "no-store"
+            }
+        }
+    }
+
     @api path /api/*
     handle @api {
         reverse_proxy chat-api:8080
