@@ -109,6 +109,23 @@ class Handler(BaseHTTPRequestHandler):
         with psycopg2.connect(DSN) as conn:
             self.send_json(200, {"initialized": is_bootstrapped(conn)})
 
+    def do_DELETE(self):
+        match = re.fullmatch(r"/api/admin/invites/([1-9][0-9]*)", urlsplit(self.path).path)
+        if not match:
+            return self.send_json(404, {"error": "not_found"})
+        try:
+            auth = self.headers.get("Authorization", "")
+            if not auth.startswith("Bearer "):
+                raise PermissionError("Missing bearer token")
+            actor = verify(auth[7:])
+            with psycopg2.connect(DSN) as conn:
+                changed = revoke_invite(conn, actor, int(match.group(1)))
+            return self.send_json(200 if changed else 404, {"revoked": changed})
+        except PermissionError:
+            return self.send_json(403, {"error": "forbidden"})
+        except (psycopg2.Error, OSError):
+            return self.send_json(503, {"error": "backend_unavailable"})
+
     def do_POST(self):
         path = urlsplit(self.path).path
         if path not in ("/api/setup/register", "/api/auth/register", "/api/admin/invites"):
@@ -159,6 +176,7 @@ class Handler(BaseHTTPRequestHandler):
                     bootstrap_first_user(conn, mxid)
                 else:
                     redeem_invite(conn, token, mxid)
+                conn.commit()
                 return self.send_json(201, {
                     "user_id": mxid, "access_token": account["access_token"],
                     "device_id": account.get("device_id"),
