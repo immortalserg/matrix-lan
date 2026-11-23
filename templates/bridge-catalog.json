@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "installation_policy": "bundled",
+  "description": "All supported bridges are visible in the unified settings. Inactive services may remain stopped until configured.",
+  "bridges": [
+    {
+      "id": "whatsapp",
+      "service": "mautrix-whatsapp",
+      "label": "WhatsApp",
+      "setup": "qr",
+      "personal": true
+    },
+    {
+      "id": "telegram",
+      "service": "mautrix-telegram",
+      "label": "Telegram",
+      "setup": "api_credentials_and_login",
+      "personal": true
+    },
+    {
+      "id": "facebook",
+      "service": "mautrix-facebook",
+      "label": "Facebook Messenger",
+      "setup": "login",
+      "personal": true
+    },
+    {
+      "id": "instagram",
+      "service": "mautrix-instagram",
+      "label": "Instagram",
+      "setup": "login",
+      "personal": true
+    },
+    {
+      "id": "signal",
+      "service": null,
+      "label": "Signal",
+      "setup": "not_implemented",
+      "personal": true,
+      "available": false
+    },
+    {
+      "id": "twitter",
+      "service": "mautrix-twitter",
+      "label": "X / Twitter",
+      "setup": "login",
+      "personal": true
+    },
+    {
+      "id": "tiktok",
+      "service": "mautrix-tiktok",
+      "label": "TikTok",
+      "setup": "login",
+      "personal": true
+    },
+    {
+      "id": "linkedin",
+      "service": "mautrix-linkedin",
+      "label": "LinkedIn",
+      "setup": "login",
+      "personal": true
+    },
+    {
+      "id": "email",
+      "service": "mautrix-email",
+      "label": "Email",
+      "setup": "imap_smtp",
+      "personal": true
+    },
+    {
+      "id": "threads",
+      "service": "matrix-threads",
+      "label": "Threads",
+      "setup": "login",
+      "personal": true
+    },
+    {
+      "id": "ok",
+      "service": "matrix-ok",
+      "label": "Одноклассники",
+      "setup": "login",
+      "personal": true
+    },
+    {
+      "id": "vk",
+      "service": "matrix-vk",
+      "label": "ВКонтакте",
+      "setup": "login",
+      "personal": true
+    },
+    {
+      "id": "wechat",
+      "service": "matrix-wechat",
+      "label": "WeChat",
+      "setup": "login",
+      "personal": true
+    },
+    {
+      "id": "imo",
+      "service": "matrix-imo",
+      "label": "imo",
+      "setup": "login",
+      "personal": true
+    },
+    {
+      "id": "taobao",
+      "service": "matrix-taobao",
+      "label": "Taobao",
+      "setup": "login",
+      "personal": true
+    },
+    {
+      "id": "pinduoduo",
+      "service": "matrix-pinduoduo",
+      "label": "Pinduoduo",
+      "setup": "login",
+      "personal": true
+    }
+  ]
+}
