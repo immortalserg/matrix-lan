@@ -31,6 +31,8 @@ def bootstrap_first_user(conn, mxid):
     Locking serializes all bootstrap attempts. The singleton primary key
     permanently prevents a second bootstrap even if the owner is deleted.
     """
+    if not isinstance(mxid, str) or not mxid.startswith("@") or ":" not in mxid or len(mxid) > 255:
+        raise RegistrationError("Invalid verified Matrix user ID")
     with conn.cursor() as cur:
         _lock(cur)
         cur.execute("SELECT EXISTS(SELECT 1 FROM matrix_lan_bootstrap)")
@@ -82,11 +84,16 @@ def redeem_invite(conn, token, verified_mxid):
     Call only after Synapse has created/verified the Matrix identity.
     The caller must hold the transaction open and roll back on any failure.
     """
+    if not isinstance(verified_mxid, str) or not verified_mxid.startswith("@") or ":" not in verified_mxid or len(verified_mxid) > 255:
+        raise RegistrationError("Invalid verified Matrix user ID")
     if not isinstance(token, str) or len(token) > 256:
         raise RegistrationError("Invalid invitation")
     digest = hashlib.sha256(token.encode("utf-8")).digest()
     with conn.cursor() as cur:
         _lock(cur)
+        cur.execute("SELECT EXISTS(SELECT 1 FROM matrix_lan_bootstrap)")
+        if not cur.fetchone()[0]:
+            raise RegistrationError("First user must complete bootstrap registration")
         cur.execute(
             "SELECT id,created_by FROM matrix_lan_registration_invites "
             "WHERE token_hash=%s AND consumed_at IS NULL AND revoked_at IS NULL "
