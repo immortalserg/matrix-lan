@@ -78,6 +78,27 @@ def credentials(path):
     return data
 
 
+def bridge_catalog(runtime, settings):
+    """Report every bundled connector without treating an unconfigured one as installed."""
+    catalog = load(TEMPLATES / 'bridge-catalog.json')
+    configured = set(settings['services'])
+    entries = []
+    for bridge in catalog['bridges']:
+        service = bridge.get('service')
+        available = bridge.get('available', True)
+        prepared = bool(service and service in configured)
+        entries.append({
+            'id': bridge['id'],
+            'label': bridge['label'],
+            'service': service,
+            'available': available,
+            'prepared': prepared,
+            'status': 'unavailable' if not available else ('prepared' if prepared else 'not_prepared'),
+            'setup': bridge['setup'],
+        })
+    return {'schema_version': 1, 'bridges': entries}
+
+
 def choose_setup(args):
     if not re.fullmatch(r'[a-z0-9._=+\-/]{1,48}', args.owner):
         raise ValueError('Use a lowercase Matrix localpart for --owner.')
@@ -379,7 +400,7 @@ def main():
     p.add_argument('--core', action='store_true')
     p.add_argument('--telegram-config', type=Path)
     p.add_argument('--cbmrs-origin', default='')
-    for action in ('start', 'status', 'stop', 'password', 'ca'):
+    for action in ('start', 'status', 'stop', 'password', 'ca', 'bridge-catalog'):
         sub.add_parser(action)
     bridge_parser = sub.add_parser('enable-bridge', help='Add WhatsApp or Telegram to an existing installation.')
     bridge_parser.add_argument('bridge', choices=('whatsapp', 'telegram'))
@@ -403,7 +424,9 @@ def main():
         print(f'Prepared {len(settings["services"])} services in {runtime}.')
         return
     settings = load(auth_file)
-    if args.action == 'password':
+    if args.action == 'bridge-catalog':
+        print(json.dumps(bridge_catalog(runtime, settings), ensure_ascii=False, indent=2))
+    elif args.action == 'password':
         print(settings['password'])
     elif args.action == 'status':
         compose(runtime, 'ps')
