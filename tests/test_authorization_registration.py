@@ -28,7 +28,7 @@ class RegistrationTests(unittest.TestCase):
         body = request.call_args_list[1].args[1]
         import hashlib
         import hmac
-        expected = hmac.new(b"test-secret", b"abc\\x00alice\\x00long-password\\x00notadmin", hashlib.sha1).hexdigest()
+        expected = hmac.new(b"test-secret", "\0".join(("abc", "alice", "long-password", "notadmin")).encode(), hashlib.sha1).hexdigest()
         self.assertEqual(body["mac"], expected)
 
     @patch.object(api, "request")
