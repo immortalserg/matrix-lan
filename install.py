@@ -313,37 +313,57 @@ def start(runtime, settings, auth_file):
     print(f'Login @{settings["owner"]}:{settings["host"]}. Read the initial password with: sudo python3 install.py{runtime_option} password')
 
 
-def enable_telegram(runtime, settings, auth_file, config_path):
-    if not settings['owner_token'] or 'matrix-accounts' not in settings['services']:
-        raise ValueError('Start the full installation before adding Telegram.')
-    if 'mautrix-telegram' in settings['services']:
-        raise ValueError('Telegram is already configured for this installation.')
-    settings['telegram'] = credentials(config_path)
-    settings['services'].append('mautrix-telegram')
+def enable_bridge(runtime, settings, auth_file, bridge, config_path=None):
+    """Add one bridge to an existing installation without re-preparing runtime."""
+    if not settings['owner_token']:
+        raise ValueError('Start Matrix LAN and initialize the owner before adding bridges.')
+    if bridge not in ('telegram', 'whatsapp'):
+        raise ValueError('Supported bridges: telegram, whatsapp.')
+    service = 'mautrix-' + bridge
+    if service in settings['services']:
+        raise ValueError(f'{bridge} is already configured.')
+    if bridge == 'telegram':
+        if config_path is None:
+            raise ValueError('Telegram requires a JSON credentials file with api_id and api_hash.')
+        settings['telegram'] = credentials(config_path)
+
     tokens = replacements(settings)
     state = runtime / 'state'
-    name = REGISTRATION_FOR['mautrix-telegram']
+    name = REGISTRATION_FOR[service]
     registration = render(load(TEMPLATES / 'registrations' / (name + '.json')), tokens)
-    telegram = render(load(TEMPLATES / 'config' / 'telegram.json'), tokens)
-    telegram['network']['api_id'] = settings['telegram']['api_id']
-    state_directory(state / 'telegram', 1337)
-    write(state / 'telegram' / 'config.yaml', telegram, 1337)
-    write(state / 'telegram' / 'registration.yaml', registration, 1337)
+    config = render(load(TEMPLATES / 'config' / (bridge + '.json')), tokens)
+    if bridge == 'telegram':
+        config['network']['api_id'] = settings['telegram']['api_id']
+
+    # Write bridge configuration before registering it with Synapse.
+    state_directory(state / bridge, 1337)
+    write(state / bridge / 'config.yaml', config, 1337)
+    write(state / bridge / 'registration.yaml', registration, 1337)
     write(state / 'synapse' / name, registration, 991)
-    homeserver = load(state / 'synapse' / 'homeserver.yaml')
+
+    homeserver_path = state / 'synapse' / 'homeserver.yaml'
+    homeserver = load(homeserver_path)
     appservice_path = '/data/' + name
     if appservice_path not in homeserver['app_service_config_files']:
         homeserver['app_service_config_files'].append(appservice_path)
-    write(state / 'synapse' / 'homeserver.yaml', homeserver, 991)
-    current_compose = load(runtime / 'compose.yaml')
-    updated = compose_spec(settings, tokens)
-    current_compose['services']['mautrix-telegram'] = updated['services']['mautrix-telegram']
-    write(runtime / 'compose.yaml', current_compose)
-    write(auth_file, settings)
-    compose(runtime, 'config', '--quiet')
+
+    updated_settings = dict(settings)
+    updated_settings['services'] = [*settings['services'], service]
+    updated_compose = compose_spec(updated_settings, tokens)
+    # Validate candidate Compose config before changing the running installation.
+    with tempfile.TemporaryDirectory(prefix='bridge-check-', dir=runtime) as temp:
+        candidate = Path(temp) / 'compose.yaml'
+        write(candidate, updated_compose)
+        command(['docker', 'compose', '--project-directory', str(runtime),
+                 '-f', str(candidate), 'config', '--quiet'])
+
+    write(homeserver_path, homeserver, 991)
+    write(runtime / 'compose.yaml', updated_compose)
+    write(auth_file, updated_settings)
     compose(runtime, 'restart', 'synapse')
-    compose(runtime, 'up', '-d', 'mautrix-telegram')
-    print('Telegram is configured. Add your Telegram account in Element.')
+    compose(runtime, 'up', '-d', '--no-deps', service)
+    print(f'{bridge.capitalize()} bridge enabled. Connect the account from Element.')
+
 
 
 def main():
@@ -361,6 +381,9 @@ def main():
     p.add_argument('--cbmrs-origin', default='')
     for action in ('start', 'status', 'stop', 'password', 'ca'):
         sub.add_parser(action)
+    bridge_parser = sub.add_parser('enable-bridge', help='Add WhatsApp or Telegram to an existing installation.')
+    bridge_parser.add_argument('bridge', choices=('whatsapp', 'telegram'))
+    bridge_parser.add_argument('--telegram-config', type=Path)
     sub.add_parser('enable-telegram').add_argument('telegram_config', type=Path)
     args = parser.parse_args()
     runtime = args.runtime.resolve()
@@ -393,8 +416,10 @@ def main():
     else:
         if os.name != 'posix' or os.geteuid() != 0:
             raise ValueError('Run on the Linux Docker host with sudo so bind mounts have the correct owner.')
-        if args.action=='enable-telegram':
-            enable_telegram(runtime, settings, auth_file, args.telegram_config)
+        if args.action == 'enable-telegram':
+            enable_bridge(runtime, settings, auth_file, 'telegram', args.telegram_config)
+        elif args.action == 'enable-bridge':
+            enable_bridge(runtime, settings, auth_file, args.bridge, args.telegram_config)
         else:
             start(runtime, settings, auth_file)
 
