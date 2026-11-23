@@ -103,14 +103,43 @@ class Handler(BaseHTTPRequestHandler):
             raise RegistrationError("Expected JSON object")
         return result
 
+    def superuser(self, conn):
+        authorization = self.headers.get("Authorization", "")
+        if not authorization.startswith("Bearer "):
+            raise PermissionError("Bearer token required")
+        mxid = verify(authorization[7:])
+        with conn.cursor() as cur:
+            cur.execute("SELECT role FROM matrix_lan_users WHERE mxid=%s", (mxid,))
+            row = cur.fetchone()
+        if not row or row[0] != "superuser":
+            raise PermissionError("Superuser required")
+        return mxid
+
     def do_GET(self):
-        if urlsplit(self.path).path != "/api/setup/status":
+        path = urlsplit(self.path).path
+        if path not in ("/api/setup/status", "/api/admin/users", "/api/admin/invites"):
             return self.send_json(404, {"error": "not_found"})
         try:
             with psycopg2.connect(DSN) as conn:
-                self.send_json(200, {"initialized": is_bootstrapped(conn)})
-        except psycopg2.Error:
-            self.send_json(503, {"error": "database_unavailable"})
+                if path == "/api/setup/status":
+                    return self.send_json(200, {"initialized": is_bootstrapped(conn)})
+                self.superuser(conn)
+                with conn.cursor() as cur:
+                    if path == "/api/admin/users":
+                        cur.execute("SELECT mxid,role,created_at FROM matrix_lan_users ORDER BY created_at")
+                        users = [{"mxid": mxid, "role": role, "created_at": created.isoformat()}
+                                 for mxid, role, created in cur.fetchall()]
+                        return self.send_json(200, {"users": users})
+                    cur.execute("SELECT id,expires_at,consumed_at,revoked_at "
+                                "FROM matrix_lan_registration_invites ORDER BY id DESC LIMIT 200")
+                    invites = [{"id": invite_id, "expires_at": expires.isoformat(),
+                                "consumed": consumed is not None, "revoked": revoked is not None}
+                               for invite_id, expires, consumed, revoked in cur.fetchall()]
+                    return self.send_json(200, {"invites": invites})
+        except PermissionError:
+            self.send_json(403, {"error": "forbidden"})
+        except (psycopg2.Error, OSError):
+            self.send_json(503, {"error": "backend_unavailable"})
 
     def do_DELETE(self):
         match = re.fullmatch(r"/api/admin/invites/([1-9][0-9]*)", urlsplit(self.path).path)
@@ -120,8 +149,8 @@ class Handler(BaseHTTPRequestHandler):
             auth = self.headers.get("Authorization", "")
             if not auth.startswith("Bearer "):
                 raise PermissionError("Missing bearer token")
-            actor = verify(auth[7:])
             with psycopg2.connect(DSN) as conn:
+                actor = self.superuser(conn)
                 changed = revoke_invite(conn, actor, int(match.group(1)))
             return self.send_json(200 if changed else 404, {"revoked": changed})
         except PermissionError:
@@ -139,8 +168,9 @@ class Handler(BaseHTTPRequestHandler):
             data = self.body()
             with psycopg2.connect(DSN) as conn:
                 if path == "/api/admin/invites":
-                    actor = verify(self.headers.get("Authorization", "").removeprefix("Bearer "))
+                    actor = self.superuser(conn)
                     token = create_invite(conn, actor, hours=data.get("hours", 24))
+                    conn.commit()
                     return self.send_json(201, {"token": token})
                 username, password = data.get("username"), data.get("password")
                 if not isinstance(username, str) or not USER_RE.fullmatch(username):
