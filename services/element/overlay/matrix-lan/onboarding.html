@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Matrix-LAN — регистрация и пользователи</title>
+<style>
+:root{font-family:system-ui,sans-serif;color-scheme:dark}body{background:#101723;color:#edf2f8;margin:0;padding:28px}
+main{max-width:780px;margin:auto}h1{font-size:1.8rem}section{background:#1d2938;border:1px solid #39495b;border-radius:14px;padding:22px;margin:18px 0}
+label{display:block;margin:12px 0 5px}input,select,button{font:inherit;border-radius:8px;padding:10px;background:#111c29;color:inherit;border:1px solid #526277}
+input{box-sizing:border-box;width:100%}button{cursor:pointer;background:#285a91;border:0;margin:8px 8px 8px 0}
+button:disabled{opacity:.5}a{color:#9dceff}li{margin:9px 0;overflow-wrap:anywhere}.error{color:#ffb2b2}.success{color:#a9e5c4}
+</style></head><body><main><h1>Matrix-LAN</h1><p><a href="/">Перейти к сообщениям</a></p>
+<p id="notice" role="status" aria-live="polite">Проверяем состояние сервера…</p>
+<section id="register" hidden><h2 id="registration-title">Регистрация</h2>
+<form id="registration-form"><label for="username">Имя пользователя</label><input id="username" required minlength="1" maxlength="80" autocomplete="username" pattern="[a-z0-9._=/-]+">
+<label for="password">Пароль (не менее 12 символов)</label><input id="password" type="password" required minlength="12" maxlength="256" autocomplete="new-password">
+<div id="invite-field" hidden><label for="invite">Одноразовый ключ приглашения</label><input id="invite" autocomplete="off"></div>
+<button type="submit">Зарегистрироваться</button></form></section>
+<section id="admin"><h2>Управление пользователями</h2><p>Войдите с учётной записью суперпользователя. Пароль передаётся непосредственно Synapse.</p>
+<form id="login-form"><label for="admin-user">Имя пользователя</label><input id="admin-user" required autocomplete="username">
+<label for="admin-pass">Пароль</label><input id="admin-pass" type="password" required autocomplete="current-password">
+<button type="submit">Войти</button><button type="button" id="logout">Выйти</button></form>
+<div id="admin-content" hidden><h3>Создать приглашение</h3><form id="invite-form"><label for="hours">Срок действия (часов)</label><input id="hours" type="number" min="1" max="168" value="24" required>
+<button type="submit">Создать одноразовый ключ</button></form><p id="new-invite" aria-live="polite"></p>
+<h3>Пользователи</h3><ul id="users"></ul><h3>Приглашения</h3><ul id="invites"></ul><button type="button" id="refresh">Обновить списки</button></div></section>
+</main><script src="/matrix-lan/onboarding.js" defer></script></body></html>
