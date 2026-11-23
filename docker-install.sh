@@ -25,7 +25,7 @@ for ((i=1; i<=$#; i++)); do
 done
 
 IMAGE="matrix-lan-installer:local"
-docker build -f "$ROOT/Dockerfile.installer" -t "$IMAGE" "$ROOT"
+docker build -t "$IMAGE" - < "$ROOT/Dockerfile.installer"
 
 # Socket access effectively grants root privileges on the Docker host.
 # Never expose this container or mount the socket into any runtime bridge.
