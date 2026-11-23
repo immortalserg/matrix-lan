@@ -121,7 +121,8 @@ def choose_setup(args):
     for template in TEMPLATES.rglob('*'):
         if template.is_file():
             secret_keys.update(SECRET_PATTERN.findall(template.read_text(encoding='utf-8')))
-    secret_keys.update({'__SECRET_API_BEARER__', '__SECRET_WECHAT_NATIVE__', '__SECRET_POSTGRES__'})
+    secret_keys.update({'__SECRET_API_BEARER__', '__SECRET_WECHAT_NATIVE__', '__SECRET_POSTGRES__',
+                        *(f'__SECRET_DB_{role.upper()}__' for role in POSTGRES_ROLES)})
     return {'host': args.host, 'bind': args.bind, 'port': args.port, 'project': args.project,
             'owner': args.owner, 'services': selected, 'telegram': telegram, 'cbmrs_origin': args.cbmrs_origin,
             'password': secrets.token_urlsafe(27), 'owner_token': '',
