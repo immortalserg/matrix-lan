@@ -67,6 +67,18 @@ def register_synapse(username, password):
         "nonce": nonce, "username": username, "password": password,
         "admin": False, "mac": mac,
     })
+    if status == 400 and data.get("errcode") == "M_USER_IN_USE":
+        login_status, login = request("/_matrix/client/v3/login", {
+            "type": "m.login.password",
+            "identifier": {"type": "m.id.user", "user": username},
+            "password": password,
+            "initial_device_display_name": "Matrix-LAN registration recovery",
+        })
+        if login_status != 200:
+            raise RegistrationError("Matrix username already exists")
+        if login.get("user_id") != f"@{username}:{SERVER}":
+            raise RegistrationError("Unexpected Matrix login identity")
+        return login
     if status != 200:
         raise RegistrationError("Matrix account registration failed")
     return data
