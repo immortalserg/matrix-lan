@@ -18,7 +18,7 @@ from urllib.parse import urlsplit
 import psycopg2
 from registration import (
     RegistrationError, bootstrap_first_user, create_invite,
-    is_bootstrapped, redeem_invite, revoke_invite,
+    is_bootstrapped, redeem_invite, revoke_invite, change_role,
 )
 
 DSN = os.environ["MATRIX_LAN_DSN"]
@@ -153,6 +153,29 @@ class Handler(BaseHTTPRequestHandler):
                 actor = self.superuser(conn)
                 changed = revoke_invite(conn, actor, int(match.group(1)))
             return self.send_json(200 if changed else 404, {"revoked": changed})
+        except PermissionError:
+            return self.send_json(403, {"error": "forbidden"})
+        except (psycopg2.Error, OSError):
+            return self.send_json(503, {"error": "backend_unavailable"})
+
+    def do_PATCH(self):
+        match = re.fullmatch(r"/api/admin/users/(@[^/]+)/role", urlsplit(self.path).path)
+        if not match:
+            return self.send_json(404, {"error": "not_found"})
+        if not allowed(self.client_address[0]):
+            return self.send_json(429, {"error": "rate_limited"})
+        try:
+            data = self.body()
+            role = data.get("role")
+            with psycopg2.connect(DSN) as conn:
+                actor = self.superuser(conn)
+                changed = change_role(conn, actor, match.group(1), role)
+                conn.commit()
+            return self.send_json(200, {"changed": changed, "role": role})
+        except RegistrationError as exc:
+            return self.send_json(400, {"error": str(exc)})
+        except (ValueError, json.JSONDecodeError):
+            return self.send_json(400, {"error": "invalid_request"})
         except PermissionError:
             return self.send_json(403, {"error": "forbidden"})
         except (psycopg2.Error, OSError):
