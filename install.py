@@ -19,7 +19,7 @@ from urllib.parse import urlsplit
 ROOT = Path(__file__).resolve().parent
 SOURCE = ROOT / 'services'
 TEMPLATES = ROOT / 'templates'
-CORE = ('db', 'synapse', 'element', 'caddy')
+CORE = ('db', 'synapse', 'element', 'caddy', 'authorization')
 GO_BRIDGES = ('whatsapp', 'telegram', 'facebook', 'instagram', 'twitter', 'tiktok', 'linkedin', 'email')
 SOCIAL = ('threads', 'ok', 'vk')
 SHOPPING = ('taobao', 'pinduoduo')
@@ -30,7 +30,7 @@ REGISTRATION_FOR = {
     **{f'matrix-{key}': f'matrix-{key}-registration.yaml' for key in SHOPPING},
     **{f'matrix-{key}': f'appservice-{key}-20261119.yaml' for key in SOCIAL},
 }
-POSTGRES_ROLES = ('synapse', 'whatsapp', 'telegram', 'linkedin')
+POSTGRES_ROLES = ('synapse', 'whatsapp', 'telegram', 'linkedin', 'authorization')
 SECRET_PATTERN = re.compile(r'__SECRET_[A-Z0-9_]+__')
 SOURCE_TOKEN = re.compile(r'__(?:MATRIX_OWNER|PUBLIC_ORIGIN|PUBLIC_ORIGIN_RE|SERVER_NAME|SERVER_RE)__')
 
@@ -230,7 +230,14 @@ def configure(runtime, settings):
         secret = tokens[f'__SECRET_DB_{role.upper()}__']
         pg_init.append(f"CREATE ROLE {role} LOGIN PASSWORD '{secret}';")
         pg_init.append(f"CREATE DATABASE {role} OWNER {role} TEMPLATE template0 ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C';")
+    pg_init.append((SOURCE / 'authorization' / 'schema.sql').read_text(encoding='utf-8'))
     write(state / 'postgres-init.sql', '\n'.join(pg_init) + '\n', 70, 0o640)
+    write(state / 'authorization.env', '\n'.join((
+        'MATRIX_LAN_DSN=postgresql://authorization:' + tokens['__SECRET_DB_AUTHORIZATION__'] + '@db:5432/postgres',
+        'SYNAPSE_REGISTRATION_SECRET=' + tokens['__SECRET_SYNAPSE_REGISTRATION_SHARED_SECRET__'],
+        'MATRIX_SERVER_NAME=' + settings['host'],
+        'SYNAPSE_URL=http://synapse:8008',
+    )) + '\n')
 
     api_env = load(TEMPLATES / 'chat-api-env.json')
     api_env.update({'MATRIX_USER_ID': tokens['__MATRIX_OWNER__'], 'MATRIX_ACCESS_TOKEN': settings['owner_token'],
@@ -318,9 +325,9 @@ def start(runtime, settings, auth_file):
     registration backend is wired into the web UI. Do not create an owner here.
     """
     compose(runtime, 'config', '--quiet')
-    compose(runtime, 'up', '-d', 'db', 'synapse', 'element', 'caddy')
+    compose(runtime, 'up', '-d', 'db', 'synapse', 'element', 'caddy', 'authorization')
     print(f'Open https://{settings["host"]}:{settings["port"]}/')
-    print('Infrastructure started. Web-first registration backend is not yet enabled.')
+    print('Authorization API started; web UI and failure recovery are not yet ready.')
     print('No Matrix user or superuser has been created.')
 
 
