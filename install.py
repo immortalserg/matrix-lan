@@ -166,6 +166,45 @@ def build_contexts(runtime, tokens):
             path.write_text(render(text, replacements_for_code), encoding='utf-8', newline='\n')
 
 
+def unified_process_manifest(layout, settings):
+    """Generate candidate commands; readiness remains false until verified."""
+    binaries = {
+        'whatsapp': '/opt/bridge-roots/whatsapp/usr/bin/mautrix-whatsapp',
+        'telegram': '/opt/bridge-roots/telegram/usr/bin/mautrix-telegram',
+        'facebook': '/opt/bridge-roots/instagram/usr/bin/mautrix-facebook',
+        'instagram': '/opt/bridge-roots/instagram/usr/bin/mautrix-meta',
+        'signal': '/opt/bridge-roots/signal/usr/bin/mautrix-signal',
+        'twitter': '/opt/bridge-roots/twitter/usr/bin/mautrix-twitter',
+        'linkedin': '/opt/bridge-roots/linkedin/usr/bin/mautrix-linkedin',
+        'email': '/usr/local/bin/matrimail',
+        'tiktok': '/usr/local/bin/matrix-tiktok',
+    }
+    manifest = {}
+    for name, spec in layout.bridges.items():
+        cwd = spec['data_dir']
+        env = {}
+        if name in binaries:
+            argv = [binaries[name], '-c', cwd + '/config.yaml']
+            if name == 'email':
+                env['MATRIMAIL_CURSOR_DIR'] = cwd + '/imap-cursors'
+        else:
+            family = ('social' if name in ('ok', 'vk') else
+                      'shopping' if name in SHOPPING else name)
+            entry = 'manager.py' if name == 'imo' else 'app.py'
+            argv = ['python', '/opt/bridges/' + family + '/' + entry]
+            if name in SOCIAL:
+                env['SOCIAL_PLATFORM'] = name
+            if name in SHOPPING:
+                env['SHOPPING_PLATFORM'] = name
+        manifest[name] = {
+            'argv': argv, 'cwd': cwd, 'env': env,
+            'port': spec['port'], 'health_path': spec.get('health_path'),
+            'enabled': spec['legacy_service'] in settings['services'],
+            'ready': False,
+        }
+    return manifest
+
+
 def prepare_unified_layout(runtime, settings, tokens):
     """Stage unified configuration separately; never change active legacy routes."""
     from bridge_layout import BridgeLayout
@@ -190,6 +229,7 @@ def prepare_unified_layout(runtime, settings, tokens):
     caddy = (runtime / 'state' / 'Caddyfile').read_text(encoding='utf-8')
     write(target / 'Caddyfile', layout.rewrite_upstreams(caddy), 10001)
     write(target / 'layout.json', load(TEMPLATES / 'bridge-processes.json'), 10001)
+    write(target / 'processes.json', unified_process_manifest(layout, settings), 10001)
 
 
 def configure(runtime, settings):
