@@ -9,11 +9,11 @@ action="$1"
 shift
 [[ "$action" == install ]] || { echo "Only fresh install is supported; existing data is never overwritten." >&2; exit 2; }
 [[ ! -e "$DEST" && ! -L "$DEST" ]] || { echo "Deployment already exists; refusing overwrite." >&2; exit 1; }
-[[ ! -e "$SOURCE/runtime" ]] || { echo "Existing source runtime detected. Back up or explicitly reset it before fresh deployment." >&2; exit 1; }
+[[ ! -e "$SOURCE/runtime" && ! -L "$SOURCE/runtime" ]] || { echo "Existing source runtime detected. Back up or explicitly reset it before fresh deployment." >&2; exit 1; }
 umask 077
 install -d -o root -g root -m 0700 "$DEST"
 # Export committed source only; exclude runtime, untracked secrets and Git metadata.
-git -C "$SOURCE" archive HEAD | tar --extract --directory="$DEST" --no-same-owner --no-same-permissions
+git -c safe.directory="$SOURCE" -C "$SOURCE" archive HEAD | tar --extract --directory="$DEST" --no-same-owner --no-same-permissions
 chown -R root:root "$DEST"
 chmod -R go-w "$DEST"
 cd "$DEST"
