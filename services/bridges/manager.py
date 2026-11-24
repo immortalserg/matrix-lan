@@ -1,6 +1,9 @@
 """Container-local supervisor. No Docker socket or host commands."""
 import json
 import socket
+import threading
+import logging
+from logging.handlers import RotatingFileHandler
 import http.client
 from concurrent.futures import ThreadPoolExecutor
 import os
@@ -30,6 +33,41 @@ def terminate(process):
     except ProcessLookupError:
         pass
     process.wait()
+    if hasattr(process, 'log_reader'):
+        process.log_reader.join(timeout=3)
+
+def drain_output(name, stream, handler):
+    try:
+        with stream:
+            while True:
+                chunk = stream.readline(16384)
+                if not chunk:
+                    break
+                record = logging.LogRecord(name, logging.INFO, "", 0,
+                    chunk.decode("utf-8", errors="replace").rstrip("\r\n"), (), None)
+                handler.handle(record)
+    finally:
+        handler.close()
+
+def launch(name, spec, env):
+    directory = Path("/var/log/matrix-bridges")
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    handler = RotatingFileHandler(directory / (name + ".log"),
+                                  maxBytes=5 * 1024 * 1024, backupCount=3,
+                                  encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+    try:
+        process = subprocess.Popen(spec["argv"], cwd=spec["cwd"], env=env,
+                                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                   start_new_session=True)
+    except BaseException:
+        handler.close()
+        raise
+    reader = threading.Thread(target=drain_output,
+                              args=(name, process.stdout, handler), daemon=True)
+    reader.start()
+    process.log_reader = reader
+    return process
 
 def desired_states():
     dsn = os.environ.get("MATRIX_BRIDGES_DSN")
@@ -97,6 +135,7 @@ def publish_states(specs, processes, retry, desired, shutting_down=False):
                     health = EXCLUDED.health, checked_at = EXCLUDED.checked_at""", rows)
 
 def main():
+    os.umask(0o077)
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
     specs = json.loads(MANIFEST.read_text())
@@ -138,9 +177,7 @@ def main():
                         env = {k: os.environ[k] for k in ("PATH", "LANG", "TZ", "SSL_CERT_FILE", "PLAYWRIGHT_BROWSERS_PATH") if k in os.environ}
                         env.update(spec.get("env", {}))
                         env["HOME"] = spec["cwd"]
-                        processes[name] = subprocess.Popen(
-                            spec["argv"], cwd=spec["cwd"], env=env,
-                            start_new_session=True)
+                        processes[name] = launch(name, spec, env)
                     except OSError as exc:
                         print(f"{name}: startup failed: {type(exc).__name__}", flush=True)
                         retry[name] = time.monotonic() + 30
