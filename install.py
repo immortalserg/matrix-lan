@@ -166,6 +166,31 @@ def build_contexts(runtime, tokens):
             path.write_text(render(text, replacements_for_code), encoding='utf-8', newline='\n')
 
 
+def prepare_unified_layout(runtime, settings, tokens):
+    """Stage unified configuration separately; never change active legacy routes."""
+    from bridge_layout import BridgeLayout
+    layout = BridgeLayout(load(TEMPLATES / 'bridge-processes.json'))
+    target = runtime / 'state' / 'unified'
+    state_directory(target, 10001)
+    for bridge, spec in layout.bridges.items():
+        service = spec['legacy_service']
+        if service not in settings['services'] and bridge != 'signal':
+            continue
+        name = REGISTRATION_FOR.get(service, 'mautrix-signal-registration.yaml')
+        registration = render(load(TEMPLATES / 'registrations' / (name + '.json')), tokens)
+        directory = target / bridge
+        state_directory(directory, 10001)
+        write(directory / 'registration.yaml', layout.registration(bridge, registration), 10001)
+        if bridge in (*GO_BRIDGES, 'signal'):
+            config = render(load(TEMPLATES / 'config' / (bridge + '.json')), tokens)
+            if bridge == 'telegram':
+                config['network']['api_id'] = (settings['telegram'] or {}).get('api_id', 0)
+            write(directory / 'config.yaml', layout.config(bridge, config), 10001)
+    caddy = (runtime / 'state' / 'Caddyfile').read_text(encoding='utf-8')
+    write(target / 'Caddyfile', layout.rewrite_upstreams(caddy), 10001)
+    write(target / 'layout.json', load(TEMPLATES / 'bridge-processes.json'), 10001)
+
+
 def configure(runtime, settings):
     tokens = replacements(settings)
     state = runtime / 'state'
@@ -253,6 +278,7 @@ def configure(runtime, settings):
                     'TELEGRAM_PROVISIONING_SECRET': config['telegram']['provisioning']['shared_secret']})
     write(state / 'chat-api.env', '\n'.join(f'{k}={v}' for k, v in api_env.items()) + '\n')
     write(runtime / 'compose.yaml', compose_spec(settings, tokens))
+    prepare_unified_layout(runtime, settings, tokens)
 
 
 def compose_spec(settings, tokens):
