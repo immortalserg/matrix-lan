@@ -26,7 +26,6 @@ def reconcile(runtime):
         "postgres", "-d", "postgres", "-At", "-v", "ON_ERROR_STOP=1",
         "-c", "SELECT json_build_object('api_id',api_id,'api_hash',api_hash) FROM matrix_lan_telegram_credentials WHERE singleton"],
         check=True, capture_output=True, text=True).stdout.strip()
-    telegram_changed = False
     if credentials and "mautrix-telegram" in settings["services"]:
         data = json.loads(credentials)
         if type(data["api_id"]) is not int or not 0 < data["api_id"] <= 2147483647 or not re.fullmatch(r"[a-fA-F0-9]{32}", data["api_hash"]):
@@ -46,11 +45,10 @@ def reconcile(runtime):
                 # Stop before replacing configuration; never delete session data.
                 subprocess.run(compose + ["stop", "mautrix-telegram"], check=True)
                 temp.replace(path)
-                telegram_changed = True
             finally:
                 temp.unlink(missing_ok=True)
-        if telegram_changed:
-            preferences.setdefault("telegram", True)
+        # Retry startup on later passes even if the config is already written.
+        preferences.setdefault("telegram", True)
     for bridge in catalog["bridges"]:
         service = bridge.get("service")
         if not bridge.get("available", True) or service not in settings["services"]:
