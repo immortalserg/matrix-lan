@@ -172,6 +172,7 @@ def prepare_unified_layout(runtime, settings, tokens):
     layout = BridgeLayout(load(TEMPLATES / 'bridge-processes.json'))
     target = runtime / 'state' / 'unified'
     state_directory(target, 10001)
+    state_directory(runtime / 'state' / 'bridge-logs', 10001)
     for bridge, spec in layout.bridges.items():
         service = spec['legacy_service']
         if service not in settings['services'] and bridge != 'signal':
@@ -303,8 +304,10 @@ def compose_spec(settings, tokens):
     services['element']['volumes'] = ['./state/element.json:/app/config.json:ro']
     services['element']['environment'] = {'ELEMENT_WEB_PORT': '80'}
     if 'authorization' in services:
-        services['authorization']['volumes'] = ['./state/bridge-catalog.json:/app/bridge-catalog.json:ro']
+        services['authorization']['volumes'] = ['./state/bridge-catalog.json:/app/bridge-catalog.json:ro', './state/bridge-logs:/var/log/matrix-bridges:ro']
         services['caddy'].setdefault('depends_on', []).append('authorization')
+    if 'matrix-bridges' in services:
+        services['matrix-bridges'].setdefault('volumes', []).append('./state/bridge-logs:/var/log/matrix-bridges:rw')
     services['caddy']['ports'] = [f'{settings["bind"]}:{settings["port"]}:18443']
     services['caddy']['volumes'] = ['./state/Caddyfile:/etc/caddy/Caddyfile:ro', 'caddy_data:/data', 'caddy_config:/config']
     for bridge in GO_BRIDGES:
