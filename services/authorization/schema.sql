@@ -45,4 +45,10 @@ CREATE TABLE IF NOT EXISTS matrix_lan_bridge_settings (
     updated_by TEXT NOT NULL REFERENCES matrix_lan_users(mxid),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS matrix_lan_bridge_runtime (
+    bridge TEXT PRIMARY KEY,
+    state TEXT NOT NULL,
+    health TEXT NOT NULL,
+    checked_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 COMMIT;
