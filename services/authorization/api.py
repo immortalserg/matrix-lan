@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import json
 import os
+import stat
 import re
 import threading
 import time
@@ -129,6 +130,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        logs = re.fullmatch(r"/api/admin/bridges/([a-z0-9]+)/logs", path)
+        if logs:
+            return self.bridge_logs(logs.group(1))
         if path not in ("/api/setup/status", "/api/admin/users", "/api/admin/invites", "/api/admin/bridges"):
             return self.send_json(404, {"error": "not_found"})
         try:
@@ -168,6 +172,35 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(403, {"error": "forbidden"})
         except (psycopg2.Error, OSError):
             self.send_json(503, {"error": "backend_unavailable"})
+
+    def bridge_logs(self, bridge_id):
+        try:
+            with psycopg2.connect(DSN) as conn:
+                actor = self.superuser(conn)
+                with open("/app/bridge-catalog.json", encoding="utf-8") as source:
+                    if not any(b["id"] == bridge_id for b in json.load(source)["bridges"]):
+                        return self.send_json(404, {"error": "bridge_unknown"})
+                # Audit access without copying log content into the audit table.
+                with conn.cursor() as cur:
+                    cur.execute("INSERT INTO matrix_lan_audit (actor_mxid,target_mxid,action) VALUES (%s,%s,%s)",
+                                (actor, bridge_id, "bridge_logs_read"))
+            root = "/var/log/matrix-bridges"
+            fd = os.open(root + "/" + bridge_id + ".log",
+                         os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            with os.fdopen(fd, "rb") as stream:
+                info = os.fstat(stream.fileno())
+                if not stat.S_ISREG(info.st_mode):
+                    return self.send_json(404, {"error": "log_unavailable"})
+                stream.seek(max(0, info.st_size - 32768))
+                content = stream.read(32768).decode("utf-8", errors="replace")
+            return self.send_json(200, {"bridge": bridge_id, "log": content,
+                                        "truncated": info.st_size > 32768})
+        except PermissionError:
+            return self.send_json(403, {"error": "forbidden"})
+        except FileNotFoundError:
+            return self.send_json(404, {"error": "log_unavailable"})
+        except (psycopg2.Error, OSError):
+            return self.send_json(503, {"error": "backend_unavailable"})
 
     def do_DELETE(self):
         match = re.fullmatch(r"/api/admin/invites/([1-9][0-9]*)", urlsplit(self.path).path)
