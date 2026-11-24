@@ -39,4 +39,10 @@ CREATE TABLE IF NOT EXISTS matrix_lan_audit (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS matrix_lan_audit_created_idx ON matrix_lan_audit(created_at DESC);
+CREATE TABLE IF NOT EXISTS matrix_lan_bridge_settings (
+    bridge TEXT PRIMARY KEY,
+    desired_enabled BOOLEAN NOT NULL,
+    updated_by TEXT NOT NULL REFERENCES matrix_lan_users(mxid),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 COMMIT;
