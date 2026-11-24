@@ -142,8 +142,11 @@ class Handler(BaseHTTPRequestHandler):
                     with conn.cursor() as cur:
                         cur.execute("SELECT bridge, desired_enabled FROM matrix_lan_bridge_settings")
                         preferences = dict(cur.fetchall())
+                        cur.execute("SELECT bridge,state,health,checked_at FROM matrix_lan_bridge_runtime")
+                        observed = {key: {'state': state, 'health': health, 'checked_at': checked.isoformat()} for key,state,health,checked in cur.fetchall()}
                     for bridge in inventory["bridges"]:
                         bridge["desired_enabled"] = preferences.get(bridge["id"], bridge["prepared"])
+                        bridge["runtime"] = observed.get(bridge["id"])
                     return self.send_json(200, inventory)
                 with conn.cursor() as cur:
                     if path == "/api/admin/users":
