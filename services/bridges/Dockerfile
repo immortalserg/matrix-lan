@@ -42,5 +42,6 @@ COPY wechat/*.py /opt/bridges/wechat/
 COPY bridges/manager.py /opt/bridges/manager.py
 ENV PYTHONUNBUFFERED=1
 WORKDIR /opt/bridges
+RUN install -d -m 0700 -o 10001 -g 10001 /var/log/matrix-bridges
 USER 10001:10001
 ENTRYPOINT ["python", "/opt/bridges/manager.py"]
