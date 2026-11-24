@@ -290,8 +290,39 @@ class Handler(BaseHTTPRequestHandler):
         except (psycopg2.Error, OSError):
             return self.send_json(503, {"error": "backend_unavailable"})
 
+    def restart_bridge(self, bridge_id):
+        try:
+            with psycopg2.connect(DSN) as conn:
+                actor = self.superuser(conn)
+                with open("/app/bridge-catalog.json", encoding="utf-8") as source:
+                    bridge = next((b for b in json.load(source)["bridges"] if b["id"] == bridge_id), None)
+                if not bridge or not bridge["available"] or not bridge["prepared"]:
+                    return self.send_json(404, {"error": "bridge_unavailable"})
+                with conn.cursor() as cur:
+                    cur.execute("SELECT desired_enabled FROM matrix_lan_bridge_settings WHERE bridge=%s", (bridge_id,))
+                    row = cur.fetchone()
+                    if row and not row[0]:
+                        return self.send_json(409, {"error": "bridge_disabled"})
+                    cur.execute("""INSERT INTO matrix_lan_bridge_restart (bridge,requested_by)
+                        VALUES (%s,%s) ON CONFLICT (bridge) DO UPDATE SET
+                        generation=matrix_lan_bridge_restart.generation+1,
+                        requested_by=EXCLUDED.requested_by,requested_at=now()
+                        RETURNING generation""", (bridge_id, actor))
+                    generation = cur.fetchone()[0]
+                    cur.execute("INSERT INTO matrix_lan_audit (actor_mxid,target_mxid,action) VALUES (%s,%s,%s)",
+                                (actor, bridge_id, "bridge_restart_requested"))
+                conn.commit()
+            return self.send_json(202, {"generation": generation, "status": "queued"})
+        except PermissionError:
+            return self.send_json(403, {"error": "forbidden"})
+        except (psycopg2.Error, OSError):
+            return self.send_json(503, {"error": "backend_unavailable"})
+
     def do_POST(self):
         path = urlsplit(self.path).path
+        restart = re.fullmatch(r"/api/admin/bridges/([a-z0-9]+)/restart", path)
+        if restart:
+            return self.restart_bridge(restart.group(1))
         if path not in ("/api/setup/register", "/api/auth/register", "/api/admin/invites"):
             return self.send_json(404, {"error": "not_found"})
         if not allowed(self.client_address[0]):
