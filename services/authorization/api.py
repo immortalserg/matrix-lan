@@ -138,7 +138,13 @@ class Handler(BaseHTTPRequestHandler):
                 self.superuser(conn)
                 if path == "/api/admin/bridges":
                     with open("/app/bridge-catalog.json", encoding="utf-8") as catalog:
-                        return self.send_json(200, json.load(catalog))
+                        inventory = json.load(catalog)
+                    with conn.cursor() as cur:
+                        cur.execute("SELECT bridge, desired_enabled FROM matrix_lan_bridge_settings")
+                        preferences = dict(cur.fetchall())
+                    for bridge in inventory["bridges"]:
+                        bridge["desired_enabled"] = preferences.get(bridge["id"], bridge["prepared"])
+                    return self.send_json(200, inventory)
                 with conn.cursor() as cur:
                     if path == "/api/admin/users":
                         cur.execute("SELECT mxid,role,created_at FROM matrix_lan_users ORDER BY created_at")
@@ -173,7 +179,34 @@ class Handler(BaseHTTPRequestHandler):
         except (psycopg2.Error, OSError):
             return self.send_json(503, {"error": "backend_unavailable"})
 
+    def bridge_preference(self, bridge_id):
+        try:
+            with psycopg2.connect(DSN) as conn:
+                actor = self.superuser(conn)
+                data = self.body()
+                enabled = data.get("enabled")
+                if type(enabled) is not bool:
+                    raise RegistrationError("enabled must be boolean")
+                with open("/app/bridge-catalog.json", encoding="utf-8") as source:
+                    bridges = json.load(source)["bridges"]
+                bridge = next((b for b in bridges if b["id"] == bridge_id), None)
+                if not bridge or not bridge["available"]:
+                    return self.send_json(404, {"error": "bridge_unavailable"})
+                with conn.cursor() as cur:
+                    cur.execute("INSERT INTO matrix_lan_bridge_settings (bridge, desired_enabled, updated_by) VALUES (%s,%s,%s) ON CONFLICT (bridge) DO UPDATE SET desired_enabled=EXCLUDED.desired_enabled, updated_by=EXCLUDED.updated_by, updated_at=now()", (bridge_id, enabled, actor))
+                conn.commit()
+                return self.send_json(200, {"desired_enabled": enabled, "applied": False})
+        except PermissionError:
+            return self.send_json(403, {"error": "forbidden"})
+        except (RegistrationError, ValueError):
+            return self.send_json(400, {"error": "invalid_request"})
+        except (psycopg2.Error, OSError):
+            return self.send_json(503, {"error": "backend_unavailable"})
+
     def do_PATCH(self):
+        bridge = re.fullmatch(r"/api/admin/bridges/([a-z0-9_-]+)", urlsplit(self.path).path)
+        if bridge:
+            return self.bridge_preference(bridge.group(1))
         match = re.fullmatch(r"/api/admin/users/(@[^/]+)/role", urlsplit(self.path).path)
         if not match:
             return self.send_json(404, {"error": "not_found"})
