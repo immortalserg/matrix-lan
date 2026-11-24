@@ -103,6 +103,28 @@ def desired_states():
             cur.execute("SELECT bridge, desired_enabled FROM matrix_lan_bridge_settings")
             return dict(cur.fetchall())
 
+def restart_requests():
+    dsn = os.environ.get("MATRIX_BRIDGES_DSN")
+    if not dsn:
+        return {}
+    import psycopg2
+    from contextlib import closing
+    with closing(psycopg2.connect(dsn, connect_timeout=3, options="-c statement_timeout=3000")) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT bridge,generation FROM matrix_lan_bridge_restart WHERE generation > applied_generation")
+            return dict(cur.fetchall())
+
+def acknowledge_restart(name, generation):
+    import psycopg2
+    from contextlib import closing
+    with closing(psycopg2.connect(os.environ["MATRIX_BRIDGES_DSN"], connect_timeout=3,
+                                  options="-c statement_timeout=3000")) as conn:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""UPDATE matrix_lan_bridge_restart
+                    SET applied_generation=GREATEST(applied_generation,%s)
+                    WHERE bridge=%s AND generation >= %s""", (generation,name,generation))
+
 def probe(spec):
     """Probe only the local bridge listener, never follow redirects."""
     port = spec.get("port")
@@ -168,6 +190,9 @@ def main():
     processes = {}
     retry = {}
     desired = {}
+    pending = {}
+    attempted = {}
+    completed = {}
     next_poll = 0
     next_publish = 0
     try:
@@ -177,6 +202,7 @@ def main():
                 next_poll = now + 5
                 try:
                     desired = desired_states()
+                    pending = restart_requests()
                 except Exception as exc:
                     # Retain last known state during database outages.
                     print(f"State query failed: {type(exc).__name__}", flush=True)
@@ -195,15 +221,33 @@ def main():
                         processes.pop(name)
                     retry.pop(name, None)
                     continue
+                generation = pending.get(name, 0)
+                if generation > attempted.get(name, 0):
+                    if process is not None:
+                        terminate(process)
+                        processes.pop(name)
+                        process = None
+                    retry.pop(name, None)
+                    attempted[name] = generation
                 if process is None and time.monotonic() >= retry.get(name, 0):
                     try:
                         env = {k: os.environ[k] for k in ("PATH", "LANG", "TZ", "SSL_CERT_FILE", "PLAYWRIGHT_BROWSERS_PATH") if k in os.environ}
                         env.update(spec.get("env", {}))
                         env["HOME"] = spec["cwd"]
                         processes[name] = launch(name, spec, env)
+                        if generation:
+                            completed[name] = generation
                     except OSError as exc:
                         print(f"{name}: startup failed: {type(exc).__name__}", flush=True)
                         retry[name] = time.monotonic() + 30
+            for name, generation in list(completed.items()):
+                try:
+                    acknowledge_restart(name, generation)
+                    completed.pop(name)
+                    if pending.get(name) == generation:
+                        pending.pop(name)
+                except Exception as exc:
+                    print(f"{name}: restart acknowledgement failed: {type(exc).__name__}", flush=True)
             if time.monotonic() >= next_publish:
                 next_publish = time.monotonic() + 5
                 try:
