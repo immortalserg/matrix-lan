@@ -65,4 +65,6 @@ CREATE TABLE IF NOT EXISTS matrix_lan_bridge_restart (
     requested_by TEXT NOT NULL REFERENCES matrix_lan_users(mxid),
     requested_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE matrix_lan_telegram_credentials
+    ADD COLUMN IF NOT EXISTS applied_at TIMESTAMPTZ;
 COMMIT;
