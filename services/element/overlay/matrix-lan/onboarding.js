@@ -79,6 +79,11 @@ async function refresh() {
     for (const bridge of catalog.bridges) {
       const row = document.createElement("p");
       row.textContent = bridge.label + " — " + (!bridge.available ? "Не реализован" : bridge.prepared ? "Подготовлен (работоспособность не проверена)" : "Не подготовлен");
+      if (bridge.runtime) {
+        const state = document.createElement("span");
+        state.textContent = " — Docker: " + bridge.runtime.state + " / " + bridge.runtime.health + " (проверено " + new Date(bridge.runtime.checked_at).toLocaleString() + ")";
+        row.append(state);
+      }
       if (bridge.available) {
         const toggle = document.createElement("input");
         toggle.type = "checkbox";
@@ -92,7 +97,7 @@ async function refresh() {
             await api("/api/admin/bridges/" + encodeURIComponent(bridge.id), {
               method: "PATCH", body: JSON.stringify({enabled: desired})
             });
-            notice("Настройка сохранена. Применение к контейнеру пока не реализовано.");
+            notice("Настройка сохранена. Контроллер применит её при следующей проверке, если он установлен.");
           } catch (error) {
             toggle.checked = !desired;
             notice(error.message, true);
