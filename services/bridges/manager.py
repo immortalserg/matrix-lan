@@ -111,8 +111,18 @@ def telegram_credentials():
     from contextlib import closing
     with closing(psycopg2.connect(dsn, connect_timeout=3, options="-c statement_timeout=3000")) as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT api_id,api_hash FROM matrix_lan_telegram_credentials WHERE singleton")
+            cur.execute("SELECT api_id,api_hash,updated_at FROM matrix_lan_telegram_credentials WHERE singleton")
             return cur.fetchone()
+
+def acknowledge_telegram(credentials):
+    import psycopg2
+    from contextlib import closing
+    with closing(psycopg2.connect(os.environ["MATRIX_BRIDGES_DSN"], connect_timeout=3,
+                                  options="-c statement_timeout=3000")) as conn:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""UPDATE matrix_lan_telegram_credentials SET applied_at=now()
+                    WHERE singleton AND api_id=%s AND api_hash=%s AND updated_at=%s""", credentials)
 
 def telegram_configured(spec):
     import yaml
@@ -279,7 +289,8 @@ def main():
                         processes.pop(name)
                         process = None
                     try:
-                        apply_telegram_credentials(spec, telegram)
+                        apply_telegram_credentials(spec, telegram[:2])
+                        acknowledge_telegram(telegram)
                         telegram_applied = telegram
                         retry.pop(name, None)
                     except Exception as exc:
