@@ -240,4 +240,4 @@ class Gateway:
   a.router.add_put('/_matrix/app/v1/transactions/{txn}',self.transaction)
   a.router.add_route('*','/_matrix/provision/v3/{tail:.*}',self.handler);a.on_startup.append(self.startup);a.on_cleanup.append(self.cleanup);return a
 
-if __name__=='__main__':web.run_app(Gateway().app(),host='0.0.0.0',port=29392,access_log=None)
+if __name__=='__main__':web.run_app(Gateway().app(),host='0.0.0.0',port=int(os.getenv('BRIDGE_PORT','29392')),access_log=None)
