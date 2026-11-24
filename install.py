@@ -192,10 +192,17 @@ def unified_process_manifest(layout, settings):
                       'shopping' if name in SHOPPING else name)
             entry = 'manager.py' if name == 'imo' else 'app.py'
             argv = ['python', '/opt/bridges/' + family + '/' + entry]
+            env['BRIDGE_PORT'] = str(spec['port'])
             if name in SOCIAL:
-                env['SOCIAL_PLATFORM'] = name
+                env.update(SOCIAL_PLATFORM=name, BRIDGE_DATA=cwd,
+                           BRIDGE_OWNER_CONFIG=cwd + '/owner.json')
             if name in SHOPPING:
-                env['SHOPPING_PLATFORM'] = name
+                env.update(SHOPPING_PLATFORM=name, SHOPPING_DATA=cwd,
+                           SHOPPING_OWNER_CONFIG=cwd + '/owner.json')
+            if name == 'imo':
+                env['IMO_DATA'] = cwd
+            if name == 'wechat':
+                env['WECHAT_DATA'] = cwd
         manifest[name] = {
             'argv': argv, 'cwd': cwd, 'env': env,
             'port': spec['port'], 'health_path': spec.get('health_path'),
