@@ -56,12 +56,48 @@ $("login-form").addEventListener("submit", async (event) => {
 $("logout").addEventListener("click", async () => {
   const previous = token;
   token = null;
+  $("bridge-inventory")?.replaceChildren();
   $("admin-content").hidden = true;
   if (previous) {
     try { await fetch("/_matrix/client/v3/logout", {method:"POST", headers:{Authorization:"Bearer " + previous}}); } catch (_) {}
   }
   notice("Вы вышли из панели управления.");
 });
+function logViewer(bridge) {
+  const details = document.createElement("details");
+  const summary = document.createElement("summary");
+  summary.textContent = "Журнал — " + bridge.label;
+  const refreshButton = document.createElement("button");
+  refreshButton.type = "button";
+  refreshButton.textContent = "Обновить журнал";
+  const output = document.createElement("pre");
+  output.style.cssText = "max-height:360px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;";
+  output.setAttribute("aria-live", "polite");
+  let generation = 0;
+  async function load() {
+    const session = token;
+    const requestId = ++generation;
+    refreshButton.disabled = true;
+    output.textContent = "Загрузка…";
+    try {
+      const data = await api("/api/admin/bridges/" + encodeURIComponent(bridge.id) + "/logs");
+      if (session !== token || requestId !== generation || !details.open || !details.isConnected) return;
+      output.textContent = (data.truncated ? "[Последние 32 КиБ]\n" : "") + (data.log || "Журнал пуст.");
+    } catch (error) {
+      if (session === token && requestId === generation && details.open && details.isConnected)
+        output.textContent = "Журнал недоступен: " + error.message;
+    } finally {
+      if (requestId === generation) refreshButton.disabled = false;
+    }
+  }
+  details.addEventListener("toggle", () => {
+    if (details.open) load();
+    else { generation++; output.textContent = ""; refreshButton.disabled = false; }
+  });
+  refreshButton.addEventListener("click", load);
+  details.append(summary, refreshButton, output);
+  return details;
+}
 async function refresh() {
   const [users, invites] = await Promise.all([api("/api/admin/users"),api("/api/admin/invites")]);
   let panel = $("bridge-inventory");
@@ -105,7 +141,7 @@ async function refresh() {
         });
         row.append(document.createTextNode(" — "), label);
       }
-      panel.append(row);
+      panel.append(row, logViewer(bridge));
       if (bridge.id === "telegram") {
         const form = document.createElement("form");
         const id = document.createElement("input");
