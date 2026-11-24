@@ -235,4 +235,4 @@ def create_app(manager):
  app.router.add_post('/_matrix/app/v1/ping',manager.accounts['primary'].ping)
  app.on_startup.append(manager.startup);app.on_cleanup.append(manager.cleanup);return app
 
-if __name__=='__main__':web.run_app(create_app(Manager()),host='0.0.0.0',port=29390,access_log=None)
+if __name__=='__main__':web.run_app(create_app(Manager()),host='0.0.0.0',port=int(os.getenv('BRIDGE_PORT','29390')),access_log=None)
