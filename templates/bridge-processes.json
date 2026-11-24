@@ -40,7 +40,8 @@
     "linkedin": {
       "legacy_service": "mautrix-linkedin",
       "port": 29341,
-      "data_dir": "/data/bridges/linkedin"
+      "data_dir": "/data/bridges/linkedin",
+      "health_path": "/_matrix/mau/ready"
     },
     "email": {
       "legacy_service": "mautrix-email",
@@ -50,37 +51,44 @@
     "threads": {
       "legacy_service": "matrix-threads",
       "port": 29393,
-      "data_dir": "/data/bridges/threads"
+      "data_dir": "/data/bridges/threads",
+      "health_path": "/health"
     },
     "ok": {
       "legacy_service": "matrix-ok",
       "port": 29394,
-      "data_dir": "/data/bridges/ok"
+      "data_dir": "/data/bridges/ok",
+      "health_path": "/health"
     },
     "vk": {
       "legacy_service": "matrix-vk",
       "port": 29395,
-      "data_dir": "/data/bridges/vk"
+      "data_dir": "/data/bridges/vk",
+      "health_path": "/health"
     },
     "wechat": {
       "legacy_service": "matrix-wechat",
       "port": 29391,
-      "data_dir": "/data/bridges/wechat"
+      "data_dir": "/data/bridges/wechat",
+      "health_path": "/health"
     },
     "imo": {
       "legacy_service": "matrix-imo",
       "port": 29390,
-      "data_dir": "/data/bridges/imo"
+      "data_dir": "/data/bridges/imo",
+      "health_path": "/healthz"
     },
     "taobao": {
       "legacy_service": "matrix-taobao",
       "port": 29392,
-      "data_dir": "/data/bridges/taobao"
+      "data_dir": "/data/bridges/taobao",
+      "health_path": "/health"
     },
     "pinduoduo": {
       "legacy_service": "matrix-pinduoduo",
       "port": 29396,
-      "data_dir": "/data/bridges/pinduoduo"
+      "data_dir": "/data/bridges/pinduoduo",
+      "health_path": "/health"
     }
   }
 }
