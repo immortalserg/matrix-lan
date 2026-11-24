@@ -30,10 +30,15 @@ done
 if [[ "${1:-}" == "reset" || "${1:-}" == "reinstall" ]]; then
   action="$1"
   shift
+  [[ $EUID == 0 ]] || { echo "Run reset or reinstall with sudo." >&2; exit 1; }
   [[ "${1:-}" == "--yes" ]] || { echo "Usage: bash docker-install.sh $action --yes [prepare options]" >&2; exit 2; }
   shift
   runtime="$ROOT/runtime"
   [[ "$runtime" != "/" && "$runtime" == "$ROOT/runtime" ]] || exit 2
+  if command -v systemctl >/dev/null && [[ -d /run/systemd/system ]]; then
+    systemctl disable --now matrix-lan-controller.timer 2>/dev/null || true
+    systemctl stop matrix-lan-controller.service 2>/dev/null || true
+  fi
   if [[ -f "$runtime/compose.yaml" ]]; then
     docker compose --project-directory "$runtime" -f "$runtime/compose.yaml" down --volumes --remove-orphans
   fi
@@ -86,3 +91,9 @@ docker run --rm --user 0:0 \
   -w "$ROOT" \
   --entrypoint python3 \
   "$IMAGE" "$ROOT/install.py" "$@"
+
+
+# Host-only controller: never install a root service from a writable checkout.
+if [[ "${1:-}" == "start" && $# -eq 1 && $EUID == 0 && -d /run/systemd/system ]]; then
+  bash "$ROOT/services/controller/install-systemd.sh"
+fi
