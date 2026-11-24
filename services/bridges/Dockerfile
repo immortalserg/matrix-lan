@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 
 FROM mcr.microsoft.com/playwright/python:v1.56.0-noble
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg libolm3 libsqlite3-0 ca-certificates tzdata && rm -rf /var/lib/apt/lists/*
-RUN pip install --no-cache-dir playwright==1.56.0 aiohttp==3.13.2 Pillow==11.3.0 psycopg2-binary==2.9.10
+RUN pip install --no-cache-dir playwright==1.56.0 aiohttp==3.13.2 Pillow==11.3.0 psycopg2-binary==2.9.10 PyYAML==6.0.2
 COPY --from=go-build /out/ /usr/local/bin/
 # Keep Alpine executables with their original library trees. Do not overwrite
 # Ubuntu system libraries; the launcher must select the matching ELF loader.
