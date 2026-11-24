@@ -73,12 +73,30 @@ function logViewer(bridge) {
   const output = document.createElement("pre");
   output.style.cssText = "max-height:360px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;";
   output.setAttribute("aria-live", "polite");
+  const auto = document.createElement("input");
+  auto.type = "checkbox";
+  const autoLabel = document.createElement("label");
+  autoLabel.append(auto, document.createTextNode(" Автообновление (10 секунд)"));
+  let timer = null;
   let generation = 0;
+  function schedule() {
+    clearTimeout(timer);
+    if (auto.checked && details.open && details.isConnected && token) {
+      timer = setTimeout(() => {
+        if (details.open && details.isConnected && token && auto.checked) {
+          if (document.hidden || refreshButton.disabled) schedule();
+          else load();
+        }
+      }, 10000);
+    }
+  }
   async function load() {
+    clearTimeout(timer);
+    if (!token || !details.open || !details.isConnected || refreshButton.disabled) return;
     const session = token;
     const requestId = ++generation;
     refreshButton.disabled = true;
-    output.textContent = "Загрузка…";
+    if (!output.textContent) output.textContent = "Загрузка…";
     try {
       const data = await api("/api/admin/bridges/" + encodeURIComponent(bridge.id) + "/logs");
       if (session !== token || requestId !== generation || !details.open || !details.isConnected) return;
@@ -87,15 +105,19 @@ function logViewer(bridge) {
       if (session === token && requestId === generation && details.open && details.isConnected)
         output.textContent = "Журнал недоступен: " + error.message;
     } finally {
-      if (requestId === generation) refreshButton.disabled = false;
+      if (requestId === generation) {
+        refreshButton.disabled = false;
+        schedule();
+      }
     }
   }
   details.addEventListener("toggle", () => {
     if (details.open) load();
-    else { generation++; output.textContent = ""; refreshButton.disabled = false; }
+    else { clearTimeout(timer); generation++; output.textContent = ""; refreshButton.disabled = false; }
   });
   refreshButton.addEventListener("click", load);
-  details.append(summary, refreshButton, output);
+  auto.addEventListener("change", schedule);
+  details.append(summary, refreshButton, autoLabel, output);
   return details;
 }
 async function refresh() {
