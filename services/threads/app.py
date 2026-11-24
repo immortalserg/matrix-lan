@@ -4,7 +4,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from aiohttp import web,ClientSession,ClientTimeout
 from playwright.async_api import async_playwright
-P=os.environ.get('SOCIAL_PLATFORM','ok');LABELS={'ok':'Одноклассники','threads':'Threads','vk':'VK'};LABEL=LABELS[P];DATA=Path('/data')
+P=os.environ.get('SOCIAL_PLATFORM','ok');LABELS={'ok':'Одноклассники','threads':'Threads','vk':'VK'};LABEL=LABELS[P];DATA=Path(os.getenv('BRIDGE_DATA','/data'))
 SITES={'ok':'https://ok.ru/messages','threads':'https://www.threads.com/messages','vk':'https://m.vk.ru/login'}
 def atomic(path,value):
  tmp=path.with_suffix('.tmp');fd=os.open(tmp,os.O_WRONLY|os.O_CREAT|os.O_TRUNC,0o600)
@@ -20,7 +20,7 @@ async def errors(request,handler):
  r.headers['Cache-Control']='private, no-store';return r
 class Gateway:
  def __init__(self,data=DATA):
-  self.data=Path(data);self.label=LABEL;self.owner=json.loads(Path('/run/matrix-owner.json').read_text());self.registry_path=self.data/'accounts.json';self.registry=json.loads(self.registry_path.read_text()) if self.registry_path.exists() else {};self.states={};self.context=None;self.page=None;self.http=None;self.pw=None;self.jobs={};self.locks={};self.tasks=[];self.auth_cache={};self.bridge=None;self.backoff_until=0
+  self.data=Path(data);self.label=LABEL;self.owner=json.loads(Path(os.getenv('BRIDGE_OWNER_CONFIG','/run/matrix-owner.json')).read_text());self.registry_path=self.data/'accounts.json';self.registry=json.loads(self.registry_path.read_text()) if self.registry_path.exists() else {};self.states={};self.context=None;self.page=None;self.http=None;self.pw=None;self.jobs={};self.locks={};self.tasks=[];self.auth_cache={};self.bridge=None;self.backoff_until=0
  def persist(self):atomic(self.registry_path,self.registry)
  def account(self):return next(iter(self.registry.values()),None)
  async def authorize(self,request):
@@ -191,4 +191,4 @@ if __name__=='__main__':
   from vk_gateway import VKGateway
   gateway=VKGateway()
  else:gateway=Gateway()
- web.run_app(gateway.app(),host='0.0.0.0',port=29393,access_log=None)
+ web.run_app(gateway.app(),host='0.0.0.0',port=int(os.getenv('BRIDGE_PORT','29393')),access_log=None)
