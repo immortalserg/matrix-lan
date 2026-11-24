@@ -150,9 +150,14 @@ class Handler(BaseHTTPRequestHandler):
                         telegram = cur.fetchone()
                         cur.execute("SELECT bridge,state,health,checked_at FROM matrix_lan_bridge_runtime")
                         observed = {key: {'state': state, 'health': health, 'checked_at': checked.isoformat()} for key,state,health,checked in cur.fetchall()}
+                        cur.execute("SELECT bridge,generation,applied_generation,requested_at FROM matrix_lan_bridge_restart")
+                        restarts = {key: {"generation": str(gen), "applied_generation": str(applied),
+                                          "pending": gen > applied, "requested_at": requested.isoformat()}
+                                    for key,gen,applied,requested in cur.fetchall()}
                     for bridge in inventory["bridges"]:
                         bridge["desired_enabled"] = preferences.get(bridge["id"], bridge["prepared"])
                         bridge["runtime"] = observed.get(bridge["id"])
+                        bridge["restart"] = restarts.get(bridge["id"])
                         if bridge["id"] == "telegram":
                             bridge["credentials"] = {"configured": bool(telegram), "api_id": telegram[0] if telegram else None}
                     return self.send_json(200, inventory)
@@ -312,7 +317,7 @@ class Handler(BaseHTTPRequestHandler):
                     cur.execute("INSERT INTO matrix_lan_audit (actor_mxid,target_mxid,action) VALUES (%s,%s,%s)",
                                 (actor, bridge_id, "bridge_restart_requested"))
                 conn.commit()
-            return self.send_json(202, {"generation": generation, "status": "queued"})
+            return self.send_json(202, {"generation": str(generation), "status": "queued"})
         except PermissionError:
             return self.send_json(403, {"error": "forbidden"})
         except (psycopg2.Error, OSError):
