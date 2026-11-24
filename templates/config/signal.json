@@ -1,0 +1,76 @@
+{
+  "network": {},
+  "bridge": {
+    "command_prefix": "!signal",
+    "permissions": {
+      "*": "block",
+      "__SERVER_NAME__": "user"
+    },
+    "split_portals": true,
+    "relay": {
+      "enabled": false
+    }
+  },
+  "database": {
+    "type": "postgres",
+    "uri": "postgres://signal:__SECRET_DB_SIGNAL__@db:5432/signal?sslmode=disable",
+    "max_open_conns": 5,
+    "max_idle_conns": 1
+  },
+  "homeserver": {
+    "address": "http://synapse:8008",
+    "domain": "__SERVER_NAME__",
+    "software": "standard",
+    "status_endpoint": null,
+    "message_send_checkpoint_endpoint": null,
+    "async_media": false,
+    "websocket": false,
+    "ping_interval_seconds": 0,
+    "retry_limit": 4
+  },
+  "appservice": {
+    "address": "http://matrix-bridges:29328",
+    "public_address": "__PUBLIC_ORIGIN__/matrix-onboarding/signal",
+    "hostname": "0.0.0.0",
+    "port": 29328,
+    "id": "signal",
+    "bot": {
+      "username": "signalbot",
+      "displayname": "Signal bridge bot",
+      "avatar": ""
+    },
+    "ephemeral_events": true,
+    "async_transactions": false,
+    "as_token": "__SECRET_SIGNAL_AS_TOKEN__",
+    "hs_token": "__SECRET_SIGNAL_HS_TOKEN__",
+    "username_template": "signal_{{.}}"
+  },
+  "matrix": {
+    "sync_direct_chat_list": true,
+    "federate_rooms": false
+  },
+  "provisioning": {
+    "shared_secret": "__SECRET_CHAT_API_SIGNAL_PROVISIONING_SECRET__",
+    "allow_matrix_auth": true,
+    "debug_endpoints": false,
+    "enable_session_transfers": false,
+    "fail_on_webauthn": false,
+    "request_id_header": "Request-Id",
+    "trust_incoming_request_id": false
+  },
+  "encryption": {
+    "allow": false,
+    "default": false,
+    "require": false,
+    "pickle_key": "__SECRET_SIGNAL_PICKLE_KEY__"
+  },
+  "logging": {
+    "min_level": "info",
+    "writers": [
+      {
+        "type": "stdout",
+        "format": "json"
+      }
+    ]
+  }
+}
