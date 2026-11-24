@@ -2,6 +2,34 @@
 const $ = (id) => document.getElementById(id);
 let initialized = null;
 let token = null;
+let bridgePoll = null;
+let bridgePolling = false;
+function scheduleBridgePoll() {
+  clearTimeout(bridgePoll);
+  if (!token) return;
+  bridgePoll = setTimeout(async () => {
+    const session = token;
+    const panel = $("bridge-inventory");
+    if (!document.hidden && panel && !bridgePolling && session) {
+      bridgePolling = true;
+      try {
+        const catalog = await api("/api/admin/bridges");
+        if (session === token && panel.isConnected) {
+          for (const bridge of catalog.bridges) {
+            const row = document.getElementById("bridge-status-" + bridge.id);
+            if (row && panel.contains(row)) row.updateBridgeStatus?.(bridge);
+          }
+        }
+      } catch (_) {
+        if (session === token) {
+          for (const row of panel.querySelectorAll("[data-bridge-status]"))
+            row.markBridgeStale?.();
+        }
+      } finally { bridgePolling = false; }
+    }
+    if (session === token) scheduleBridgePoll();
+  }, 5000);
+}
 function notice(message, error = false) {
   $("notice").textContent = message;
   $("notice").className = error ? "error" : "success";
@@ -50,12 +78,14 @@ $("login-form").addEventListener("submit", async (event) => {
     token = data.access_token;
     await refresh();
     $("admin-content").hidden = false;
+    scheduleBridgePoll();
     notice("Права суперпользователя подтверждены.");
   } catch (error) { token = null; $("admin-content").hidden = true; notice("Ошибка входа: " + error.message, true); }
 });
 $("logout").addEventListener("click", async () => {
   const previous = token;
   token = null;
+  clearTimeout(bridgePoll);
   $("bridge-inventory")?.replaceChildren();
   $("admin-content").hidden = true;
   if (previous) {
@@ -137,11 +167,23 @@ async function refresh() {
     for (const bridge of catalog.bridges) {
       const row = document.createElement("p");
       row.textContent = bridge.label + " — " + (!bridge.available ? "Не реализован" : bridge.prepared ? "Подготовлен (работоспособность не проверена)" : "Не подготовлен");
-      if (bridge.runtime) {
-        const state = document.createElement("span");
-        state.textContent = " — Docker: " + bridge.runtime.state + " / " + bridge.runtime.health + " (проверено " + new Date(bridge.runtime.checked_at).toLocaleString() + ")";
-        row.append(state);
+      row.id = "bridge-status-" + bridge.id;
+      row.dataset.bridgeStatus = "";
+      const state = document.createElement("span");
+      function showState(current) {
+        const runtime = current.runtime;
+        const fresh = runtime && Date.now() - Date.parse(runtime.checked_at) < 30000;
+        state.textContent = runtime ? " — " + runtime.state + " / " + runtime.health +
+          (fresh ? "" : " (устаревшие данные)") + " (" + new Date(runtime.checked_at).toLocaleString() + ")" :
+          " — Нет данных менеджера";
+        if (current.restart) state.textContent += current.restart.pending ?
+          " — Перезапуск ожидается #" + current.restart.generation :
+          " — Запуск подтверждён #" + current.restart.applied_generation;
       }
+      row.updateBridgeStatus = showState;
+      row.markBridgeStale = () => { state.textContent = " — Не удалось обновить состояние"; };
+      showState(bridge);
+      row.append(state);
       if (bridge.available && bridge.prepared) {
         const start = document.createElement("button");
         const stop = document.createElement("button");
@@ -152,6 +194,15 @@ async function refresh() {
         stop.textContent = "Остановить";
         restart.textContent = "Перезапустить";
         let enabled = bridge.desired_enabled === true;
+        let busy = false;
+        let changedAt = 0;
+        row.updateBridgeStatus = current => {
+          showState(current);
+          if (!busy && Date.now() - changedAt > 5000) {
+            enabled = current.desired_enabled === true;
+            controls();
+          }
+        };
         function controls(busy = false) {
           start.disabled = busy || enabled;
           stop.disabled = busy || !enabled;
@@ -160,6 +211,7 @@ async function refresh() {
         async function command(action) {
           if (!token || !row.isConnected) return;
           const session = token;
+          busy = true;
           controls(true);
           try {
             const base = "/api/admin/bridges/" + encodeURIComponent(bridge.id);
@@ -176,7 +228,7 @@ async function refresh() {
             }
           } catch (error) {
             if (session === token && row.isConnected) result.textContent = "Ошибка: " + error.message;
-          } finally { controls(); }
+          } finally { busy = false; changedAt = Date.now(); controls(); }
         }
         start.addEventListener("click", () => command("start"));
         stop.addEventListener("click", () => command("stop"));
