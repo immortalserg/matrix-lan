@@ -146,7 +146,7 @@ class Handler(BaseHTTPRequestHandler):
                     with conn.cursor() as cur:
                         cur.execute("SELECT bridge, desired_enabled FROM matrix_lan_bridge_settings")
                         preferences = dict(cur.fetchall())
-                        cur.execute("SELECT api_id FROM matrix_lan_telegram_credentials WHERE singleton")
+                        cur.execute("SELECT api_id, applied_at FROM matrix_lan_telegram_credentials WHERE singleton")
                         telegram = cur.fetchone()
                         cur.execute("SELECT bridge,state,health,checked_at FROM matrix_lan_bridge_runtime")
                         observed = {key: {'state': state, 'health': health, 'checked_at': checked.isoformat()} for key,state,health,checked in cur.fetchall()}
@@ -159,7 +159,7 @@ class Handler(BaseHTTPRequestHandler):
                         bridge["runtime"] = observed.get(bridge["id"])
                         bridge["restart"] = restarts.get(bridge["id"])
                         if bridge["id"] == "telegram":
-                            bridge["credentials"] = {"configured": bool(telegram), "api_id": telegram[0] if telegram else None}
+                            bridge["credentials"] = {"configured": bool(telegram), "api_id": telegram[0] if telegram else None, "applied": bool(telegram and telegram[1]), "applied_at": telegram[1].isoformat() if telegram and telegram[1] else None}
                     return self.send_json(200, inventory)
                 with conn.cursor() as cur:
                     if path == "/api/admin/users":
@@ -257,7 +257,7 @@ class Handler(BaseHTTPRequestHandler):
                 if type(api_id) is not int or not 0 < api_id <= 2147483647 or not isinstance(api_hash, str) or not re.fullmatch(r"[a-fA-F0-9]{32}", api_hash):
                     return self.send_json(400, {"error": "invalid_telegram_credentials"})
                 with conn.cursor() as cur:
-                    cur.execute("INSERT INTO matrix_lan_telegram_credentials (singleton,api_id,api_hash,updated_by) VALUES (true,%s,%s,%s) ON CONFLICT (singleton) DO UPDATE SET api_id=EXCLUDED.api_id,api_hash=EXCLUDED.api_hash,updated_by=EXCLUDED.updated_by,updated_at=now()", (api_id,api_hash,actor))
+                    cur.execute("INSERT INTO matrix_lan_telegram_credentials (singleton,api_id,api_hash,updated_by) VALUES (true,%s,%s,%s) ON CONFLICT (singleton) DO UPDATE SET api_id=EXCLUDED.api_id,api_hash=EXCLUDED.api_hash,updated_by=EXCLUDED.updated_by,updated_at=now(),applied_at=NULL", (api_id,api_hash,actor))
                 conn.commit()
                 return self.send_json(200, {"configured": True, "api_id": api_id, "applied": False})
         except PermissionError:
