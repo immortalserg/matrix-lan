@@ -2,6 +2,9 @@
 """Run on the trusted Docker host, never in the public HTTP service."""
 import argparse
 import json
+import os
+import re
+import tempfile
 import subprocess
 from pathlib import Path
 
@@ -19,6 +22,35 @@ def reconcile(runtime):
         check=True, capture_output=True, text=True)
     preferences = json.loads(result.stdout)
     failed = False
+    credentials = subprocess.run(compose + ["exec", "-T", "db", "psql", "-U",
+        "postgres", "-d", "postgres", "-At", "-v", "ON_ERROR_STOP=1",
+        "-c", "SELECT json_build_object('api_id',api_id,'api_hash',api_hash) FROM matrix_lan_telegram_credentials WHERE singleton"],
+        check=True, capture_output=True, text=True).stdout.strip()
+    telegram_changed = False
+    if credentials and "mautrix-telegram" in settings["services"]:
+        data = json.loads(credentials)
+        if type(data["api_id"]) is not int or not 0 < data["api_id"] <= 2147483647 or not re.fullmatch(r"[a-fA-F0-9]{32}", data["api_hash"]):
+            raise ValueError("Invalid stored Telegram credentials")
+        path = runtime / "state/telegram/config.yaml"
+        config = json.loads(path.read_text())
+        network = config["network"]
+        if any(network.get(key) != data[key] for key in ("api_id", "api_hash")):
+            network.update(data)
+            stat = path.stat()
+            with tempfile.NamedTemporaryFile(mode="w", dir=path.parent, delete=False) as out:
+                temp = Path(out.name)
+                json.dump(config, out, ensure_ascii=False, indent=2)
+            try:
+                os.chown(temp, stat.st_uid, stat.st_gid)
+                os.chmod(temp, 0o600)
+                # Stop before replacing configuration; never delete session data.
+                subprocess.run(compose + ["stop", "mautrix-telegram"], check=True)
+                temp.replace(path)
+                telegram_changed = True
+            finally:
+                temp.unlink(missing_ok=True)
+        if telegram_changed:
+            preferences.setdefault("telegram", True)
     for bridge in catalog["bridges"]:
         service = bridge.get("service")
         if not bridge.get("available", True) or service not in settings["services"]:
