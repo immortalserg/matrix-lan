@@ -520,4 +520,4 @@ def application(directory):
 
 if __name__=='__main__':
     logging.basicConfig(level=logging.INFO)
-    web.run_app(application(os.getenv('WECHAT_DATA','/wechat-data')),host='0.0.0.0',port=29391,access_log=None)
+    web.run_app(application(os.getenv('WECHAT_DATA','/wechat-data')),host='0.0.0.0',port=int(os.getenv('BRIDGE_PORT','29391')),access_log=None)
