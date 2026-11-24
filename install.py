@@ -30,7 +30,7 @@ REGISTRATION_FOR = {
     **{f'matrix-{key}': f'matrix-{key}-registration.yaml' for key in SHOPPING},
     **{f'matrix-{key}': f'appservice-{key}-20261119.yaml' for key in SOCIAL},
 }
-POSTGRES_ROLES = ('synapse', 'whatsapp', 'telegram', 'linkedin', 'authorization')
+POSTGRES_ROLES = ('synapse', 'whatsapp', 'telegram', 'linkedin', 'signal', 'authorization')
 SECRET_PATTERN = re.compile(r'__SECRET_[A-Z0-9_]+__')
 SOURCE_TOKEN = re.compile(r'__(?:MATRIX_OWNER|PUBLIC_ORIGIN|PUBLIC_ORIGIN_RE|SERVER_NAME|SERVER_RE)__')
 
