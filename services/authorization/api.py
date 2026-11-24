@@ -142,11 +142,15 @@ class Handler(BaseHTTPRequestHandler):
                     with conn.cursor() as cur:
                         cur.execute("SELECT bridge, desired_enabled FROM matrix_lan_bridge_settings")
                         preferences = dict(cur.fetchall())
+                        cur.execute("SELECT api_id FROM matrix_lan_telegram_credentials WHERE singleton")
+                        telegram = cur.fetchone()
                         cur.execute("SELECT bridge,state,health,checked_at FROM matrix_lan_bridge_runtime")
                         observed = {key: {'state': state, 'health': health, 'checked_at': checked.isoformat()} for key,state,health,checked in cur.fetchall()}
                     for bridge in inventory["bridges"]:
                         bridge["desired_enabled"] = preferences.get(bridge["id"], bridge["prepared"])
                         bridge["runtime"] = observed.get(bridge["id"])
+                        if bridge["id"] == "telegram":
+                            bridge["credentials"] = {"configured": bool(telegram), "api_id": telegram[0] if telegram else None}
                     return self.send_json(200, inventory)
                 with conn.cursor() as cur:
                     if path == "/api/admin/users":
@@ -206,7 +210,28 @@ class Handler(BaseHTTPRequestHandler):
         except (psycopg2.Error, OSError):
             return self.send_json(503, {"error": "backend_unavailable"})
 
+    def telegram_credentials(self):
+        try:
+            with psycopg2.connect(DSN) as conn:
+                actor = self.superuser(conn)
+                data = self.body()
+                api_id, api_hash = data.get("api_id"), data.get("api_hash")
+                if type(api_id) is not int or not 0 < api_id <= 2147483647 or not isinstance(api_hash, str) or not re.fullmatch(r"[a-fA-F0-9]{32}", api_hash):
+                    return self.send_json(400, {"error": "invalid_telegram_credentials"})
+                with conn.cursor() as cur:
+                    cur.execute("INSERT INTO matrix_lan_telegram_credentials (singleton,api_id,api_hash,updated_by) VALUES (true,%s,%s,%s) ON CONFLICT (singleton) DO UPDATE SET api_id=EXCLUDED.api_id,api_hash=EXCLUDED.api_hash,updated_by=EXCLUDED.updated_by,updated_at=now()", (api_id,api_hash,actor))
+                conn.commit()
+                return self.send_json(200, {"configured": True, "api_id": api_id, "applied": False})
+        except PermissionError:
+            return self.send_json(403, {"error": "forbidden"})
+        except (RegistrationError, ValueError):
+            return self.send_json(400, {"error": "invalid_request"})
+        except (psycopg2.Error, OSError):
+            return self.send_json(503, {"error": "backend_unavailable"})
+
     def do_PATCH(self):
+        if urlsplit(self.path).path == "/api/admin/bridges/telegram/credentials":
+            return self.telegram_credentials()
         bridge = re.fullmatch(r"/api/admin/bridges/([a-z0-9_-]+)", urlsplit(self.path).path)
         if bridge:
             return self.bridge_preference(bridge.group(1))
