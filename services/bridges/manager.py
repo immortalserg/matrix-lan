@@ -114,6 +114,19 @@ def telegram_credentials():
             cur.execute("SELECT api_id,api_hash FROM matrix_lan_telegram_credentials WHERE singleton")
             return cur.fetchone()
 
+def telegram_configured(spec):
+    import yaml
+    try:
+        config = yaml.safe_load((Path(spec["cwd"]) / "config.yaml").read_text(encoding="utf-8"))
+        network = config["network"]
+        api_id = network.get("api_id")
+        api_hash = network.get("api_hash")
+        return (type(api_id) is int and 0 < api_id <= 2147483647
+                and isinstance(api_hash, str)
+                and re.fullmatch(r"[a-fA-F0-9]{32}", api_hash) is not None)
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, yaml.YAMLError):
+        return False
+
 def apply_telegram_credentials(spec, credentials):
     import tempfile
     import yaml
@@ -199,6 +212,8 @@ def publish_states(specs, processes, retry, desired, shutting_down=False):
             state = "stopped"
         elif process is not None and process.poll() is None:
             state = "running"
+        elif name == "telegram" and not telegram_configured(spec):
+            state = "configuration_required"
         elif name in retry:
             state = "retrying"
         else:
@@ -270,6 +285,11 @@ def main():
                     except Exception as exc:
                         print(f"telegram: configuration failed: {type(exc).__name__}", flush=True)
                         continue
+                if name == "telegram" and not telegram_configured(spec):
+                    if process is not None:
+                        terminate(process)
+                        processes.pop(name)
+                    continue
                 generation = pending.get(name, 0)
                 if generation > attempted.get(name, 0):
                     if process is not None:
