@@ -95,5 +95,8 @@ docker run --rm --user 0:0 \
 
 # Host-only controller: never install a root service from a writable checkout.
 if [[ "${1:-}" == "start" && $# -eq 1 && $EUID == 0 && -d /run/systemd/system ]]; then
-  bash "$ROOT/services/controller/install-systemd.sh"
+  if ! bash "$ROOT/services/controller/install-systemd.sh"; then
+    echo "Matrix-LAN started, but automatic bridge control is unavailable." >&2
+    echo "Use a trusted root-owned deployment tree (for example /opt/matrix-lan) and rerun start." >&2
+  fi
 fi
