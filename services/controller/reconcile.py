@@ -32,6 +32,33 @@ def reconcile(runtime):
         args = ["up", "-d", "--no-deps", "--no-build", service] if enabled else ["stop", service]
         proc = subprocess.run(compose + args, check=False)
         failed |= proc.returncode != 0
+    # Report only lifecycle metadata, never container environment or logs.
+    result = subprocess.run(compose + ["ps", "-a", "--format", "json"],
+                            check=True, capture_output=True, text=True)
+    raw = result.stdout.strip()
+    rows = json.loads(raw) if raw.startswith("[") else [json.loads(line) for line in raw.splitlines() if line.strip()]
+    states = {row.get("Service"): row for row in rows}
+    for bridge in catalog["bridges"]:
+        service = bridge.get("service")
+        if not service or service not in settings["services"]:
+            continue
+        row = states.get(service, {})
+        state = row.get("State", "missing")
+        if state not in ("running", "exited", "created", "restarting", "paused", "dead", "missing", "removing"):
+            state = "unknown"
+        health = row.get("Health", "")
+        if health not in ("healthy", "unhealthy", "starting"):
+            health = "unknown"
+        # Bridge IDs originate exclusively in the static catalog.
+        bridge_id = bridge["id"]
+        if not bridge_id.isascii() or not bridge_id.isalnum():
+            continue
+        sql = ("INSERT INTO matrix_lan_bridge_runtime (bridge, state, health) "
+               f"VALUES ('{bridge_id}', '{state}', '{health}') "
+               "ON CONFLICT (bridge) DO UPDATE SET state=EXCLUDED.state, "
+               "health=EXCLUDED.health, checked_at=now()")
+        subprocess.run(compose + ["exec", "-T", "db", "psql", "-U", "postgres",
+                       "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c", sql], check=True)
     return int(failed)
 
 if __name__ == "__main__":
