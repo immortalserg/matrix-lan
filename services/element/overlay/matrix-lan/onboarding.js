@@ -142,26 +142,47 @@ async function refresh() {
         state.textContent = " — Docker: " + bridge.runtime.state + " / " + bridge.runtime.health + " (проверено " + new Date(bridge.runtime.checked_at).toLocaleString() + ")";
         row.append(state);
       }
-      if (bridge.available) {
-        const toggle = document.createElement("input");
-        toggle.type = "checkbox";
-        toggle.checked = bridge.desired_enabled === true;
-        const label = document.createElement("label");
-        label.append(toggle, document.createTextNode(" Включить (желаемое состояние)"));
-        toggle.addEventListener("change", async () => {
-          const desired = toggle.checked;
-          toggle.disabled = true;
+      if (bridge.available && bridge.prepared) {
+        const start = document.createElement("button");
+        const stop = document.createElement("button");
+        const restart = document.createElement("button");
+        const result = document.createElement("span");
+        result.setAttribute("aria-live", "polite");
+        start.textContent = "Запустить";
+        stop.textContent = "Остановить";
+        restart.textContent = "Перезапустить";
+        let enabled = bridge.desired_enabled === true;
+        function controls(busy = false) {
+          start.disabled = busy || enabled;
+          stop.disabled = busy || !enabled;
+          restart.disabled = busy || !enabled;
+        }
+        async function command(action) {
+          if (!token || !row.isConnected) return;
+          const session = token;
+          controls(true);
           try {
-            await api("/api/admin/bridges/" + encodeURIComponent(bridge.id), {
-              method: "PATCH", body: JSON.stringify({enabled: desired})
-            });
-            notice("Настройка сохранена. Контроллер применит её при следующей проверке, если он установлен.");
+            const base = "/api/admin/bridges/" + encodeURIComponent(bridge.id);
+            if (action === "restart") {
+              const data = await api(base + "/restart", {method:"POST"});
+              if (session !== token || !row.isConnected) return;
+              result.textContent = "Перезапуск запрошен (#" + data.generation + ").";
+            } else {
+              const desired = action === "start";
+              await api(base, {method:"PATCH", body:JSON.stringify({enabled:desired})});
+              if (session !== token || !row.isConnected) return;
+              enabled = desired;
+              result.textContent = "Команда сохранена; ожидается применение.";
+            }
           } catch (error) {
-            toggle.checked = !desired;
-            notice(error.message, true);
-          } finally { toggle.disabled = false; }
-        });
-        row.append(document.createTextNode(" — "), label);
+            if (session === token && row.isConnected) result.textContent = "Ошибка: " + error.message;
+          } finally { controls(); }
+        }
+        start.addEventListener("click", () => command("start"));
+        stop.addEventListener("click", () => command("stop"));
+        restart.addEventListener("click", () => command("restart"));
+        controls();
+        row.append(document.createTextNode(" — "), start, stop, restart, result);
       }
       panel.append(row, logViewer(bridge));
       if (bridge.id === "telegram") {
