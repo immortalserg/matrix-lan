@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "container": "matrix-bridges",
+  "bridges": {
+    "whatsapp": {
+      "legacy_service": "mautrix-whatsapp",
+      "port": 29318,
+      "data_dir": "/data/bridges/whatsapp"
+    },
+    "telegram": {
+      "legacy_service": "mautrix-telegram",
+      "port": 29317,
+      "data_dir": "/data/bridges/telegram"
+    },
+    "facebook": {
+      "legacy_service": "mautrix-facebook",
+      "port": 29319,
+      "data_dir": "/data/bridges/facebook"
+    },
+    "instagram": {
+      "legacy_service": "mautrix-instagram",
+      "port": 29330,
+      "data_dir": "/data/bridges/instagram"
+    },
+    "signal": {
+      "legacy_service": "mautrix-signal",
+      "port": 29328,
+      "data_dir": "/data/bridges/signal"
+    },
+    "twitter": {
+      "legacy_service": "mautrix-twitter",
+      "port": 29327,
+      "data_dir": "/data/bridges/twitter"
+    },
+    "tiktok": {
+      "legacy_service": "mautrix-tiktok",
+      "port": 29380,
+      "data_dir": "/data/bridges/tiktok"
+    },
+    "linkedin": {
+      "legacy_service": "mautrix-linkedin",
+      "port": 29341,
+      "data_dir": "/data/bridges/linkedin"
+    },
+    "email": {
+      "legacy_service": "mautrix-email",
+      "port": 29320,
+      "data_dir": "/data/bridges/email"
+    },
+    "threads": {
+      "legacy_service": "matrix-threads",
+      "port": 29393,
+      "data_dir": "/data/bridges/threads"
+    },
+    "ok": {
+      "legacy_service": "matrix-ok",
+      "port": 29394,
+      "data_dir": "/data/bridges/ok"
+    },
+    "vk": {
+      "legacy_service": "matrix-vk",
+      "port": 29395,
+      "data_dir": "/data/bridges/vk"
+    },
+    "wechat": {
+      "legacy_service": "matrix-wechat",
+      "port": 29391,
+      "data_dir": "/data/bridges/wechat"
+    },
+    "imo": {
+      "legacy_service": "matrix-imo",
+      "port": 29390,
+      "data_dir": "/data/bridges/imo"
+    },
+    "taobao": {
+      "legacy_service": "matrix-taobao",
+      "port": 29392,
+      "data_dir": "/data/bridges/taobao"
+    },
+    "pinduoduo": {
+      "legacy_service": "matrix-pinduoduo",
+      "port": 29396,
+      "data_dir": "/data/bridges/pinduoduo"
+    }
+  }
+}
