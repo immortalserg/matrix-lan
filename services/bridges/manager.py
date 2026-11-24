@@ -1,5 +1,8 @@
 """Container-local supervisor. No Docker socket or host commands."""
 import json
+import socket
+import http.client
+from concurrent.futures import ThreadPoolExecutor
 import os
 import signal
 import subprocess
@@ -39,6 +42,26 @@ def desired_states():
             cur.execute("SELECT bridge, desired_enabled FROM matrix_lan_bridge_settings")
             return dict(cur.fetchall())
 
+def probe(spec):
+    """Probe only the local bridge listener, never follow redirects."""
+    port = spec.get("port")
+    if type(port) is not int or not 1024 <= port <= 65535:
+        return "unknown"
+    path = spec.get("health_path")
+    try:
+        if not path:
+            with socket.create_connection(("127.0.0.1", port), timeout=2):
+                return "tcp_reachable"
+        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=2)
+        try:
+            conn.request("GET", path)
+            response = conn.getresponse()
+            return "healthy" if 200 <= response.status < 300 else "unhealthy"
+        finally:
+            conn.close()
+    except (OSError, http.client.HTTPException):
+        return "unhealthy"
+
 def publish_states(specs, processes, retry, desired, shutting_down=False):
     dsn = os.environ.get("MATRIX_BRIDGES_DSN")
     if not dsn:
@@ -46,6 +69,11 @@ def publish_states(specs, processes, retry, desired, shutting_down=False):
     import psycopg2
     from contextlib import closing
     rows = []
+    active = {name: spec for name, spec in specs.items()
+              if not shutting_down and spec.get("ready", False)
+              and name in processes and processes[name].poll() is None}
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        health = dict(zip(active, pool.map(probe, active.values())))
     for name, spec in specs.items():
         process = processes.get(name)
         if not spec.get("ready", False):
@@ -58,7 +86,7 @@ def publish_states(specs, processes, retry, desired, shutting_down=False):
             state = "retrying"
         else:
             state = "starting"
-        rows.append((name, state, "unknown" if state == "running" else "not_running"))
+        rows.append((name, state, health.get(name, "unknown") if state == "running" else "not_running"))
     with closing(psycopg2.connect(dsn, connect_timeout=3, options="-c statement_timeout=3000")) as conn:
         with conn:
             with conn.cursor() as cur:
