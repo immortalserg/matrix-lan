@@ -251,7 +251,21 @@ async function refresh() {
         const link = document.createElement("a");
         link.href = "https://my.telegram.org"; link.target = "_blank"; link.rel = "noopener noreferrer";
         link.textContent = "Получить API ID и API Hash";
-        form.append(id, hash, save, link);
+        const applied = document.createElement("span");
+        applied.setAttribute("aria-live", "polite");
+        function showCredentials(current) {
+          const credentials = current.credentials;
+          applied.textContent = !credentials?.configured ? "API не сохранён в базе" :
+            credentials.applied ? "Конфигурация применена: " + new Date(credentials.applied_at).toLocaleString() :
+            "Ожидается применение конфигурации";
+        }
+        const previousUpdate = row.updateBridgeStatus;
+        row.updateBridgeStatus = current => {
+          previousUpdate(current);
+          showCredentials(current);
+        };
+        showCredentials(bridge);
+        form.append(id, hash, save, link, applied);
         form.addEventListener("submit", async event => {
           event.preventDefault(); save.disabled = true;
           try {
@@ -259,7 +273,8 @@ async function refresh() {
               method: "PATCH", body: JSON.stringify({api_id: Number(id.value), api_hash: hash.value})
             });
             hash.value = "";
-            notice("Telegram API сохранён. Применение конфигурации пока не реализовано.");
+            applied.textContent = "Ожидается применение конфигурации";
+            notice("Telegram API сохранён. Менеджер применит параметры при включении моста.");
           } catch (error) { notice(error.message, true); }
           finally { save.disabled = false; }
         });
