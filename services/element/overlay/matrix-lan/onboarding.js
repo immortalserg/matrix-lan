@@ -106,6 +106,34 @@ async function refresh() {
         row.append(document.createTextNode(" — "), label);
       }
       panel.append(row);
+      if (bridge.id === "telegram") {
+        const form = document.createElement("form");
+        const id = document.createElement("input");
+        id.type = "number"; id.min = "1"; id.max = "2147483647"; id.required = true;
+        id.placeholder = "API ID"; id.value = bridge.credentials?.api_id || "";
+        const hash = document.createElement("input");
+        hash.type = "password"; hash.required = true; hash.pattern = "[a-fA-F0-9]{32}";
+        hash.placeholder = bridge.credentials?.configured ? "Новый API Hash" : "API Hash";
+        hash.autocomplete = "new-password";
+        const save = document.createElement("button");
+        save.textContent = "Сохранить Telegram API";
+        const link = document.createElement("a");
+        link.href = "https://my.telegram.org"; link.target = "_blank"; link.rel = "noopener noreferrer";
+        link.textContent = "Получить API ID и API Hash";
+        form.append(id, hash, save, link);
+        form.addEventListener("submit", async event => {
+          event.preventDefault(); save.disabled = true;
+          try {
+            await api("/api/admin/bridges/telegram/credentials", {
+              method: "PATCH", body: JSON.stringify({api_id: Number(id.value), api_hash: hash.value})
+            });
+            hash.value = "";
+            notice("Telegram API сохранён. Применение конфигурации пока не реализовано.");
+          } catch (error) { notice(error.message, true); }
+          finally { save.disabled = false; }
+        });
+        panel.append(form);
+      }
     }
   } catch (error) {
     panel.append(document.createTextNode("Каталог недоступен: " + error.message));
