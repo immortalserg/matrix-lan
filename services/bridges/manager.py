@@ -1,5 +1,6 @@
 """Container-local supervisor. No Docker socket or host commands."""
 import json
+import re
 import socket
 import threading
 import logging
@@ -36,6 +37,22 @@ def terminate(process):
     if hasattr(process, 'log_reader'):
         process.log_reader.join(timeout=3)
 
+# Fail closed for recognizable credential-bearing lines. Arbitrary message
+# content cannot be reliably identified by pattern matching.
+SENSITIVE = re.compile(
+    r"(?i)(authorization|bearer\s|access[_-]?token|refresh[_-]?token|"
+    r"as[_-]?token|hs[_-]?token|api[_-]?hash|api[_-]?key|password|passwd|"
+    r"cookie|secret|session[_-]?(id|token|key)|private[_-]?key|"
+    r"postgres(?:ql)?://|otpauth://|mxc://|qr[_ -]?code|"
+    r"login[_ -]?code|verification[_ -]?code)"
+)
+
+def redact_line(raw):
+    line = raw.decode("utf-8", errors="replace").rstrip("\r\n")
+    if SENSITIVE.search(line):
+        return "[REDACTED: potential credential]"
+    return line
+
 def drain_output(name, stream, handler):
     try:
         with stream:
@@ -43,8 +60,14 @@ def drain_output(name, stream, handler):
                 chunk = stream.readline(16384)
                 if not chunk:
                     break
+                if len(chunk) == 16384 and not chunk.endswith(b"\n"):
+                    while chunk and not chunk.endswith(b"\n"):
+                        chunk = stream.readline(16384)
+                    message = "[REDACTED: oversized log line]"
+                else:
+                    message = redact_line(chunk)
                 record = logging.LogRecord(name, logging.INFO, "", 0,
-                    chunk.decode("utf-8", errors="replace").rstrip("\r\n"), (), None)
+                    message, (), None)
                 handler.handle(record)
     finally:
         handler.close()
