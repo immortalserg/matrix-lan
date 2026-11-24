@@ -368,7 +368,7 @@ https://__SERVER_NAME__:18443 {
 
     # Onboarding is routed to the dedicated authorization backend, not the
     # legacy single-owner chat adapter. Preserve paths for the API handler.
-    @onboarding path /api/admin/bridges /api/setup/* /api/auth/register /api/admin/invites /api/admin/invites/* /api/admin/users /api/admin/users/*
+    @onboarding path /api/admin/bridges /api/admin/bridges/* /api/setup/* /api/auth/register /api/admin/invites /api/admin/invites/* /api/admin/users /api/admin/users/*
     handle @onboarding {
         @onboarding_bad_origin {
             header Origin *
