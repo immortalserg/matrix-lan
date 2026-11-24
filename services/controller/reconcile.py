@@ -56,6 +56,8 @@ def reconcile(runtime):
         if bridge["id"] not in preferences:
             continue
         enabled = preferences[bridge["id"]]
+        if bridge["id"] == "telegram" and not credentials and not settings.get("telegram"):
+            enabled = False
         if type(enabled) is not bool:
             continue
         # Only static, bundled service names may reach Docker Compose.
