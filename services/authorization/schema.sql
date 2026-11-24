@@ -54,8 +54,7 @@ CREATE TABLE IF NOT EXISTS matrix_lan_bridge_runtime (
 CREATE TABLE IF NOT EXISTS matrix_lan_telegram_credentials (
     singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton),
     api_id BIGINT NOT NULL CHECK (api_id > 0 AND api_id <= 2147483647),
-    api_hash TEXT NOT NULL CHECK (api_hash ~ '^[a-fA-F0-9]{32}
-),
+    api_hash TEXT NOT NULL CHECK (api_hash ~ '^[a-fA-F0-9]{32}$'),
     updated_by TEXT NOT NULL REFERENCES matrix_lan_users(mxid),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
