@@ -115,7 +115,7 @@ def choose_setup(args):
             raise ValueError('--cbmrs-origin must be an HTTPS origin, without a path or credentials.')
     telegram = credentials(args.telegram_config)
     env = load(TEMPLATES / 'services.json')
-    extra = [service for service in env if service not in CORE and (service != 'mautrix-telegram' or telegram)]
+    extra = [service for service in env if service not in CORE]
     selected = list(CORE) + (['mautrix-whatsapp', 'matrix-accounts', 'chat-api'] if args.whatsapp_test else [] if args.core else extra)
     secret_keys = set()
     for template in TEMPLATES.rglob('*'):
@@ -334,7 +334,10 @@ def start(runtime, settings, auth_file):
     registration backend is wired into the web UI. Do not create an owner here.
     """
     compose(runtime, 'config', '--quiet')
-    compose(runtime, 'up', '-d', '--build')
+    selected = list(settings['services'])
+    if not settings.get('telegram') and 'mautrix-telegram' in selected:
+        selected.remove('mautrix-telegram')
+    compose(runtime, 'up', '-d', '--build', *selected)
     print(f'Open https://{settings["host"]}:{settings["port"]}/')
     print('Configured services started. Register or sign in from the main web interface.')
     print('Existing Matrix accounts are preserved; no owner is created automatically.')
