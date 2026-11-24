@@ -1,6 +1,7 @@
 # Build from runtime/build (the parent of this directory).
 # Initial shared runtime; Alpine binaries and native WeChat require separate
 # compatibility work before this image replaces the existing services.
+FROM dock.mau.dev/mautrix/signal:latest AS signal
 FROM dock.mau.dev/mautrix/whatsapp:v26.10 AS whatsapp
 FROM dock.mau.dev/mautrix/telegram:v26.10 AS telegram
 FROM dock.mau.dev/mautrix/meta:ig-v26.10 AS instagram
@@ -26,6 +27,7 @@ RUN pip install --no-cache-dir playwright==1.56.0 aiohttp==3.13.2 Pillow==11.3.0
 COPY --from=go-build /out/ /usr/local/bin/
 # Keep Alpine executables with their original library trees. Do not overwrite
 # Ubuntu system libraries; the launcher must select the matching ELF loader.
+COPY --from=signal / /opt/bridge-roots/signal/
 COPY --from=whatsapp / /opt/bridge-roots/whatsapp/
 COPY --from=telegram / /opt/bridge-roots/telegram/
 COPY --from=instagram / /opt/bridge-roots/instagram/
