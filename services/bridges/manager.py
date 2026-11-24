@@ -103,6 +103,40 @@ def desired_states():
             cur.execute("SELECT bridge, desired_enabled FROM matrix_lan_bridge_settings")
             return dict(cur.fetchall())
 
+def telegram_credentials():
+    dsn = os.environ.get("MATRIX_BRIDGES_DSN")
+    if not dsn:
+        return None
+    import psycopg2
+    from contextlib import closing
+    with closing(psycopg2.connect(dsn, connect_timeout=3, options="-c statement_timeout=3000")) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT api_id,api_hash FROM matrix_lan_telegram_credentials WHERE singleton")
+            return cur.fetchone()
+
+def apply_telegram_credentials(spec, credentials):
+    import tempfile
+    import yaml
+    path = Path(spec["cwd"]) / "config.yaml"
+    config = yaml.safe_load(path.read_text(encoding="utf-8"))
+    api_id, api_hash = credentials
+    if not 0 < api_id <= 2147483647 or not re.fullmatch(r"[a-fA-F0-9]{32}", api_hash):
+        raise ValueError("Invalid Telegram credentials")
+    network = config["network"]
+    if network.get("api_id") == api_id and network.get("api_hash") == api_hash:
+        return
+    network.update(api_id=api_id, api_hash=api_hash)
+    fd, temp = tempfile.mkstemp(dir=path.parent, prefix=".telegram-")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            yaml.safe_dump(config, stream, sort_keys=False)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temp, path)
+    finally:
+        if os.path.exists(temp):
+            os.unlink(temp)
+
 def restart_requests():
     dsn = os.environ.get("MATRIX_BRIDGES_DSN")
     if not dsn:
@@ -191,6 +225,8 @@ def main():
     retry = {}
     desired = {}
     pending = {}
+    telegram = None
+    telegram_applied = None
     attempted = {}
     completed = {}
     next_poll = 0
@@ -203,6 +239,7 @@ def main():
                 try:
                     desired = desired_states()
                     pending = restart_requests()
+                    telegram = telegram_credentials()
                 except Exception as exc:
                     # Retain last known state during database outages.
                     print(f"State query failed: {type(exc).__name__}", flush=True)
@@ -221,6 +258,18 @@ def main():
                         processes.pop(name)
                     retry.pop(name, None)
                     continue
+                if name == "telegram" and telegram is not None and telegram != telegram_applied:
+                    if process is not None:
+                        terminate(process)
+                        processes.pop(name)
+                        process = None
+                    try:
+                        apply_telegram_credentials(spec, telegram)
+                        telegram_applied = telegram
+                        retry.pop(name, None)
+                    except Exception as exc:
+                        print(f"telegram: configuration failed: {type(exc).__name__}", flush=True)
+                        continue
                 generation = pending.get(name, 0)
                 if generation > attempted.get(name, 0):
                     if process is not None:
