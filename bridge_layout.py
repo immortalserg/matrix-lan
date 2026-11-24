@@ -34,8 +34,21 @@ class BridgeLayout:
         app["hostname"] = "0.0.0.0"
         database = result.get("database", {})
         uri = database.get("uri", "")
-        if uri.startswith("file:/data/"):
-            database["uri"] = "file:" + self.bridges[name]["data_dir"] + "/" + uri[len("file:/data/"):]
+        # Preserve SQLite query parameters and leave network DSNs untouched.
+        if isinstance(uri, str):
+            for prefix in ("file:/data/", "/data/"):
+                if uri.startswith(prefix):
+                    relative = uri[len(prefix):]
+                    if relative.startswith("bridges/"):
+                        if not relative.startswith("bridges/" + name + "/"):
+                            raise ValueError("Database path belongs to another bridge")
+                        break
+                    path = relative.split("?", 1)[0]
+                    if not path or any(part in ("", ".", "..") for part in path.split("/")) or "%" in path:
+                        raise ValueError("Unsafe database path")
+                    scheme = "file:" if prefix.startswith("file:") else ""
+                    database["uri"] = scheme + self.bridges[name]["data_dir"] + "/" + relative
+                    break
         return result
 
     def rewrite_upstreams(self, text):
