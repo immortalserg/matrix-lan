@@ -79,6 +79,27 @@ async function refresh() {
     for (const bridge of catalog.bridges) {
       const row = document.createElement("p");
       row.textContent = bridge.label + " — " + (!bridge.available ? "Не реализован" : bridge.prepared ? "Подготовлен (работоспособность не проверена)" : "Не подготовлен");
+      if (bridge.available) {
+        const toggle = document.createElement("input");
+        toggle.type = "checkbox";
+        toggle.checked = bridge.desired_enabled === true;
+        const label = document.createElement("label");
+        label.append(toggle, document.createTextNode(" Включить (желаемое состояние)"));
+        toggle.addEventListener("change", async () => {
+          const desired = toggle.checked;
+          toggle.disabled = true;
+          try {
+            await api("/api/admin/bridges/" + encodeURIComponent(bridge.id), {
+              method: "PATCH", body: JSON.stringify({enabled: desired})
+            });
+            notice("Настройка сохранена. Применение к контейнеру пока не реализовано.");
+          } catch (error) {
+            toggle.checked = !desired;
+            notice(error.message, true);
+          } finally { toggle.disabled = false; }
+        });
+        row.append(document.createTextNode(" — "), label);
+      }
       panel.append(row);
     }
   } catch (error) {
