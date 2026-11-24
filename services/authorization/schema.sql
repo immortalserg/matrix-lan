@@ -59,4 +59,11 @@ CREATE TABLE IF NOT EXISTS matrix_lan_telegram_credentials (
     updated_by TEXT NOT NULL REFERENCES matrix_lan_users(mxid),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS matrix_lan_bridge_restart (
+    bridge TEXT PRIMARY KEY,
+    generation BIGINT NOT NULL DEFAULT 1,
+    applied_generation BIGINT NOT NULL DEFAULT 0,
+    requested_by TEXT NOT NULL REFERENCES matrix_lan_users(mxid),
+    requested_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 COMMIT;
