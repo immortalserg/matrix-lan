@@ -39,6 +39,35 @@ def desired_states():
             cur.execute("SELECT bridge, desired_enabled FROM matrix_lan_bridge_settings")
             return dict(cur.fetchall())
 
+def publish_states(specs, processes, retry, desired, shutting_down=False):
+    dsn = os.environ.get("MATRIX_BRIDGES_DSN")
+    if not dsn:
+        return
+    import psycopg2
+    from contextlib import closing
+    rows = []
+    for name, spec in specs.items():
+        process = processes.get(name)
+        if not spec.get("ready", False):
+            state = "not_prepared"
+        elif shutting_down or not desired.get(name, spec.get("enabled", False)):
+            state = "stopped"
+        elif process is not None and process.poll() is None:
+            state = "running"
+        elif name in retry:
+            state = "retrying"
+        else:
+            state = "starting"
+        rows.append((name, state, "unknown" if state == "running" else "not_running"))
+    with closing(psycopg2.connect(dsn, connect_timeout=3, options="-c statement_timeout=3000")) as conn:
+        with conn:
+            with conn.cursor() as cur:
+                cur.executemany(
+                    """INSERT INTO matrix_lan_bridge_runtime (bridge, state, health, checked_at)
+                    VALUES (%s, %s, %s, now())
+                    ON CONFLICT (bridge) DO UPDATE SET state = EXCLUDED.state,
+                    health = EXCLUDED.health, checked_at = EXCLUDED.checked_at""", rows)
+
 def main():
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
@@ -50,6 +79,7 @@ def main():
     retry = {}
     desired = {}
     next_poll = 0
+    next_publish = 0
     try:
         while not stopping:
             now = time.monotonic()
@@ -86,10 +116,20 @@ def main():
                     except OSError as exc:
                         print(f"{name}: startup failed: {type(exc).__name__}", flush=True)
                         retry[name] = time.monotonic() + 30
+            if time.monotonic() >= next_publish:
+                next_publish = time.monotonic() + 5
+                try:
+                    publish_states(specs, processes, retry, desired)
+                except Exception as exc:
+                    print(f"State publication failed: {type(exc).__name__}", flush=True)
             time.sleep(1)
     finally:
         for process in processes.values():
             terminate(process)
+        try:
+            publish_states(specs, {}, {}, desired, shutting_down=True)
+        except Exception as exc:
+            print(f"Shutdown publication failed: {type(exc).__name__}", flush=True)
 
 if __name__ == "__main__":
     main()
