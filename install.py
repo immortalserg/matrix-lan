@@ -344,6 +344,26 @@ def prepare_unified_layout(runtime, settings, tokens):
         ]
         unified['volumes'].append('./state/wechat-token:/run/secrets/wechat-api-token:ro')
         unified['depends_on']['wechat-native'] = {'condition': 'service_started'}
+    if 'matrix-accounts' in services:
+        accounts = load(runtime / 'state' / 'accounts' / 'config.json')
+        for bridge, entry in accounts['bridges'].items():
+            if bridge in layout.bridges:
+                entry['url'] = layout.address(bridge)
+        write(target / 'accounts.json', accounts, 10001)
+        services['matrix-accounts']['volumes'].append(
+            './state/unified/accounts.json:/data/config.json:ro')
+    if 'chat-api' in services:
+        services['chat-api'].setdefault('environment', {}).update({
+            'MATRIX_BRIDGE_URLS': json.dumps({
+                bridge: layout.address(bridge) for bridge in layout.bridges
+            }),
+            'WHATSAPP_PROVISIONING_URL': layout.address('whatsapp'),
+            'TELEGRAM_PROVISIONING_URL': layout.address('telegram'),
+        })
+    # WeChat previously shared the native service network namespace.
+    caddy_path = target / 'Caddyfile'
+    write(caddy_path, caddy_path.read_text(encoding='utf-8').replace(
+        'wechat-native:29391', 'matrix-bridges:29391'), 10001)
     # Candidate only: do not let the normal start command select this file.
     write(runtime / 'compose.unified-candidate.yaml', alternative)
 
