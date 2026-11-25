@@ -233,6 +233,15 @@ def prepare_unified_layout(runtime, settings, tokens):
             if bridge == 'telegram':
                 config['network']['api_id'] = (settings['telegram'] or {}).get('api_id', 0)
             write(directory / 'config.yaml', layout.config(bridge, config), 10001)
+        elif bridge in (*SOCIAL, *SHOPPING):
+            family = 'social' if bridge in SOCIAL else 'shopping'
+            owner = render(load(TEMPLATES / 'config' / (family + '-owner.json')), tokens)
+            write(directory / 'matrix.json',
+                  {key: registration[key] for key in ('as_token', 'hs_token')}, 10001)
+            write(directory / 'owner.json', owner, 10001)
+        elif bridge in ('imo', 'wechat'):
+            config = render(load(TEMPLATES / 'config' / (bridge + '.json')), tokens)
+            write(directory / 'config.json', config, 10001)
     caddy = (runtime / 'state' / 'Caddyfile').read_text(encoding='utf-8')
     write(target / 'Caddyfile', layout.rewrite_upstreams(caddy), 10001)
     write(target / 'layout.json', load(TEMPLATES / 'bridge-processes.json'), 10001)
