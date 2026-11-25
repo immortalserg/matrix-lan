@@ -20,8 +20,16 @@ async def errors(request,handler):
  r.headers['Cache-Control']='private, no-store';return r
 class Gateway:
  def __init__(self,data=DATA):
-  self.data=Path(data);self.label=LABEL;self.owner=json.loads(Path(os.getenv('BRIDGE_OWNER_CONFIG','/run/matrix-owner.json')).read_text());self.registry_path=self.data/'accounts.json';self.registry=json.loads(self.registry_path.read_text()) if self.registry_path.exists() else {};self.states={};self.context=None;self.page=None;self.http=None;self.pw=None;self.jobs={};self.locks={};self.tasks=[];self.auth_cache={};self.bridge=None;self.backoff_until=0
- def persist(self):atomic(self.registry_path,self.registry)
+  self.data=Path(data);self.label=LABEL;self.owner=json.loads(Path(os.getenv('BRIDGE_OWNER_CONFIG','/run/matrix-owner.json')).read_text());self.registry_path=self.data/'accounts.json';self.registry_backend=None;self.registry=json.loads(self.registry_path.read_text()) if self.registry_path.exists() and not os.getenv('BRIDGE_STORAGE_DSN') else {};self.load_registry();self.states={};self.context=None;self.page=None;self.http=None;self.pw=None;self.jobs={};self.locks={};self.tasks=[];self.auth_cache={};self.bridge=None;self.backoff_until=0
+ def load_registry(self):
+  dsn=os.getenv('BRIDGE_STORAGE_DSN')
+  if dsn:
+   from storage import AccountRegistry
+   self.registry_backend=AccountRegistry(self.registry_path,dsn)
+   self.registry=self.registry_backend.value
+ def persist(self):
+  if self.registry_backend is not None:self.registry_backend.save(self.registry)
+  else:atomic(self.registry_path,self.registry)
  def account(self):return next(iter(self.registry.values()),None)
  async def authorize(self,request):
   token=request.headers.get('Authorization','').removeprefix('Bearer ')
