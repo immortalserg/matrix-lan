@@ -30,6 +30,7 @@ class Bridge:
         self.root = Path(directory)
         self.c = json.loads((self.root/'config.json').read_text())
         self.key = Path(self.c['native_key_file']).read_text().strip()
+        self.native_url = self.c.get('native_url', 'http://127.0.0.1:6174').rstrip('/')
         self.db = sqlite3.connect(self.root/'bridge.sqlite3')
         self.db.row_factory = sqlite3.Row
         self.db.executescript('''PRAGMA journal_mode=WAL;
@@ -78,7 +79,7 @@ class Bridge:
             if r.status == 204: return {}
             return await r.json()
     async def native(self, path, method='GET', body=None, **kwargs):
-        return await self.request('http://127.0.0.1:6174','/v1'+path,self.key,method,body,**kwargs)
+        return await self.request(self.native_url,'/v1'+path,self.key,method,body,**kwargs)
     async def matrix(self,path,method='GET',body=None,user=None,**kwargs):
         if user: path+=('&' if '?' in path else '?')+'user_id='+q(user)
         return await self.request(self.c['homeserver'],path,self.c['as_token'],method,body,**kwargs)
@@ -339,7 +340,7 @@ class Bridge:
             raise ApiError(400,'invalid_matrix_media_url')
         data=await self.matrix('/_matrix/client/v1/media/download/'+q(u.netloc)+'/'+q(u.path.strip('/')),raw=True)
         form=aiohttp.FormData();form.add_field('file',data,filename=Path(c.get('filename') or c.get('body') or 'attachment').name[:180],content_type=c.get('info',{}).get('mimetype') or 'application/octet-stream')
-        async with self.http.post('http://127.0.0.1:6174/v1/accounts/'+q(row['account'])+'/uploads',headers={'Authorization':'Bearer '+self.key},data=form) as response:
+        async with self.http.post(self.native_url+'/v1/accounts/'+q(row['account'])+'/uploads',headers={'Authorization':'Bearer '+self.key},data=form) as response:
             if response.status>=300:raise ApiError(response.status,'native_media_upload_failed')
             source=(await response.json())['id']
         self.write('UPDATE outbox SET source=? WHERE event=?',(source,row['event']))
