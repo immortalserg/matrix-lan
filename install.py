@@ -31,7 +31,8 @@ REGISTRATION_FOR = {
     **{f'matrix-{key}': f'appservice-{key}-20261119.yaml' for key in SOCIAL},
 }
 UNIFIED_POSTGRES_CANDIDATES = ('facebook', 'instagram', 'twitter', 'tiktok', 'email')
-POSTGRES_ROLES = ('synapse', 'whatsapp', 'telegram', 'linkedin', 'signal', 'authorization', *UNIFIED_POSTGRES_CANDIDATES)
+PYTHON_POSTGRES_CANDIDATES = ('threads', 'ok', 'vk', 'taobao', 'pinduoduo', 'imo', 'wechat')
+POSTGRES_ROLES = ('synapse', 'whatsapp', 'telegram', 'linkedin', 'signal', 'authorization', *UNIFIED_POSTGRES_CANDIDATES, *PYTHON_POSTGRES_CANDIDATES)
 SECRET_PATTERN = re.compile(r'__SECRET_[A-Z0-9_]+__')
 SOURCE_TOKEN = re.compile(r'__(?:MATRIX_OWNER|PUBLIC_ORIGIN|PUBLIC_ORIGIN_RE|SERVER_NAME|SERVER_RE)__')
 
