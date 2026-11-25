@@ -241,6 +241,12 @@ def prepare_unified_layout(runtime, settings, tokens):
             write(directory / 'owner.json', owner, 10001)
         elif bridge in ('imo', 'wechat'):
             config = render(load(TEMPLATES / 'config' / (bridge + '.json')), tokens)
+            if bridge == 'wechat':
+                config['native_url'] = 'http://wechat-native:6174'
+                config['native_key_file'] = '/run/secrets/wechat-api-token'
+                native = (TEMPLATES / 'wechat-native.toml').read_text(encoding='utf-8')
+                write(target / 'wechat-native.toml',
+                      native.replace('127.0.0.1:6174', '0.0.0.0:6174'), 10001)
             write(directory / 'config.json', config, 10001)
     caddy = (runtime / 'state' / 'Caddyfile').read_text(encoding='utf-8')
     write(target / 'Caddyfile', layout.rewrite_upstreams(caddy), 10001)
