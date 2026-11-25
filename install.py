@@ -252,6 +252,26 @@ def prepare_unified_layout(runtime, settings, tokens):
     write(target / 'Caddyfile', layout.rewrite_upstreams(caddy), 10001)
     write(target / 'layout.json', load(TEMPLATES / 'bridge-processes.json'), 10001)
     write(target / 'processes.json', unified_process_manifest(layout, settings), 10001)
+    # Stage Synapse registrations separately from the live configuration.
+    synapse_target = target / 'synapse'
+    state_directory(synapse_target, 991)
+    homeserver = load(runtime / 'state' / 'synapse' / 'homeserver.yaml')
+    registrations = []
+    for bridge, spec in layout.bridges.items():
+        registration_path = target / bridge / 'registration.yaml'
+        if not registration_path.is_file():
+            continue
+        filename = REGISTRATION_FOR.get(spec['legacy_service'], 'mautrix-signal-registration.yaml')
+        write(synapse_target / filename, load(registration_path), 991)
+        registrations.append('/data/' + filename)
+    homeserver['app_service_config_files'] = registrations
+    write(synapse_target / 'homeserver.yaml', homeserver, 991)
+
+    # Separate credentials file; never embed the database password in Compose.
+    write(target / 'manager.env',
+          'MATRIX_BRIDGES_DSN=postgresql://authorization:' +
+          tokens['__SECRET_DB_AUTHORIZATION__'] + '@db:5432/postgres\n')
+
     # Build-only candidate: do not register or route traffic to unverified bridges.
     candidate = {
         'image': settings['project'] + '-bridges:local',
@@ -259,6 +279,8 @@ def prepare_unified_layout(runtime, settings, tokens):
         'user': '10001:10001',
         'init': True,
         'profiles': ['unified-preview'],
+        'env_file': ['./state/unified/manager.env'],
+        'depends_on': {'db': {'condition': 'service_healthy'}},
         'restart': 'no',
         'cap_drop': ['ALL'],
         'security_opt': ['no-new-privileges:true'],
