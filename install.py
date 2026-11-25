@@ -30,7 +30,8 @@ REGISTRATION_FOR = {
     **{f'matrix-{key}': f'matrix-{key}-registration.yaml' for key in SHOPPING},
     **{f'matrix-{key}': f'appservice-{key}-20261119.yaml' for key in SOCIAL},
 }
-POSTGRES_ROLES = ('synapse', 'whatsapp', 'telegram', 'linkedin', 'signal', 'authorization')
+UNIFIED_POSTGRES_CANDIDATES = ('facebook', 'instagram', 'twitter', 'tiktok', 'email')
+POSTGRES_ROLES = ('synapse', 'whatsapp', 'telegram', 'linkedin', 'signal', 'authorization', *UNIFIED_POSTGRES_CANDIDATES)
 SECRET_PATTERN = re.compile(r'__SECRET_[A-Z0-9_]+__')
 SOURCE_TOKEN = re.compile(r'__(?:MATRIX_OWNER|PUBLIC_ORIGIN|PUBLIC_ORIGIN_RE|SERVER_NAME|SERVER_RE)__')
 
@@ -232,6 +233,14 @@ def prepare_unified_layout(runtime, settings, tokens):
             config = render(load(TEMPLATES / 'config' / (bridge + '.json')), tokens)
             if bridge == 'telegram':
                 config['network']['api_id'] = (settings['telegram'] or {}).get('api_id', 0)
+            if bridge in UNIFIED_POSTGRES_CANDIDATES:
+                # Candidate for fresh installations only. Never migrate or
+                # overwrite an existing SQLite database automatically.
+                config['database']['type'] = 'postgres'
+                config['database']['uri'] = (
+                    'postgres://' + bridge + ':' +
+                    tokens['__SECRET_DB_' + bridge.upper() + '__'] +
+                    '@db:5432/' + bridge + '?sslmode=disable')
             write(directory / 'config.yaml', layout.config(bridge, config), 10001)
         elif bridge in (*SOCIAL, *SHOPPING):
             family = 'social' if bridge in SOCIAL else 'shopping'
