@@ -168,7 +168,7 @@ def build_contexts(runtime, tokens):
             path.write_text(render(text, replacements_for_code), encoding='utf-8', newline='\n')
 
 
-def unified_process_manifest(layout, settings):
+def unified_process_manifest(layout, settings, tokens):
     """Generate candidate commands; readiness remains false until verified."""
     binaries = {
         'whatsapp': '/opt/bridge-roots/whatsapp/usr/bin/mautrix-whatsapp',
@@ -205,6 +205,11 @@ def unified_process_manifest(layout, settings):
                 env['IMO_DATA'] = cwd
             if name == 'wechat':
                 env['WECHAT_DATA'] = cwd
+        if name in (*SOCIAL, *SHOPPING):
+            env['BRIDGE_STORAGE_DSN'] = (
+                'postgresql://' + name + ':' +
+                tokens['__SECRET_DB_' + name.upper() + '__'] +
+                '@db:5432/' + name + '?sslmode=disable')
         manifest[name] = {
             'argv': argv, 'cwd': cwd, 'env': env,
             'port': spec['port'], 'health_path': spec.get('health_path'),
@@ -261,7 +266,7 @@ def prepare_unified_layout(runtime, settings, tokens):
     caddy = (runtime / 'state' / 'Caddyfile').read_text(encoding='utf-8')
     write(target / 'Caddyfile', layout.rewrite_upstreams(caddy), 10001)
     write(target / 'layout.json', load(TEMPLATES / 'bridge-processes.json'), 10001)
-    write(target / 'processes.json', unified_process_manifest(layout, settings), 10001)
+    write(target / 'processes.json', unified_process_manifest(layout, settings, tokens), 10001)
     # Stage Synapse registrations separately from the live configuration.
     synapse_target = target / 'synapse'
     state_directory(synapse_target, 991)
