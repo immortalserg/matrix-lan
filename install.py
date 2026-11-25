@@ -294,6 +294,60 @@ def prepare_unified_layout(runtime, settings, tokens):
     write(runtime / 'compose.unified-preview.yaml',
           {'services': {'matrix-bridges': candidate}})
 
+    # Generate a complete alternative Compose model, not an overlay: overlays
+    # cannot reliably remove the old services and their dependencies.
+    alternative = compose_spec(settings, tokens)
+    services = alternative['services']
+    legacy = {spec['legacy_service'] for spec in layout.bridges.values()}
+    for service in legacy:
+        services.pop(service, None)
+    unified = dict(candidate)
+    unified.pop('profiles')
+    unified['restart'] = 'unless-stopped'
+    unified['depends_on'] = {
+        'db': {'condition': 'service_healthy'},
+        'synapse': {'condition': 'service_started'},
+    }
+    # Mount only individual bridge directories, not manager credentials or
+    # the staged Synapse configuration.
+    unified['volumes'] = [
+        mount for mount in candidate['volumes']
+        if mount != './state/unified:/data/bridges:rw'
+    ]
+    for bridge in layout.bridges:
+        if (target / bridge).is_dir():
+            unified['volumes'].append(
+                './state/unified/' + bridge + ':/data/bridges/' + bridge + ':rw')
+    services['matrix-bridges'] = unified
+    for service in services.values():
+        dependencies = service.get('depends_on')
+        if isinstance(dependencies, dict):
+            service['depends_on'] = {key: value for key, value in dependencies.items()
+                                     if key not in legacy}
+        elif isinstance(dependencies, list):
+            service['depends_on'] = [key for key in dependencies if key not in legacy]
+    services['synapse']['volumes'].append(
+        './state/unified/synapse/homeserver.yaml:/data/homeserver.yaml:ro')
+    for filename in registrations:
+        basename = Path(filename).name
+        services['synapse']['volumes'].append(
+            './state/unified/synapse/' + basename + ':/data/' + basename + ':ro')
+    services['caddy']['volumes'] = [
+        './state/unified/Caddyfile:/etc/caddy/Caddyfile:ro'
+        if mount == './state/Caddyfile:/etc/caddy/Caddyfile:ro' else mount
+        for mount in services['caddy']['volumes']
+    ]
+    if 'wechat-native' in services:
+        services['wechat-native']['volumes'] = [
+            mount.replace('./state/wechat-native.toml:', './state/unified/wechat-native.toml:')
+            for mount in services['wechat-native']['volumes']
+        ]
+        unified['volumes'].append('./state/wechat-token:/run/secrets/wechat-api-token:ro')
+        unified['depends_on']['wechat-native'] = {'condition': 'service_started'}
+    # Candidate only: do not let the normal start command select this file.
+    write(runtime / 'compose.unified-candidate.yaml', alternative)
+
+
 
 
 def configure(runtime, settings):
