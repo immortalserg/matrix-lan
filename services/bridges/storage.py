@@ -73,3 +73,27 @@ class DocumentStore:
             if row is None:
                 raise ConflictError("Document revision conflict")
             return row[0]
+
+
+class AccountRegistry:
+    """Opt-in PostgreSQL registry with one-time import of a legacy JSON file."""
+    def __init__(self, path, dsn):
+        self.path = path
+        self.store = DocumentStore(dsn)
+        self.store.initialize()
+        value, self.revision = self.store.read("registry", "accounts")
+        if self.revision == 0:
+            value = json.loads(path.read_text()) if path.exists() else {}
+            if not isinstance(value, dict):
+                raise ValueError("Invalid legacy account registry")
+            try:
+                self.revision = self.store.write("registry", "accounts", value, 0)
+            except ConflictError:
+                value, self.revision = self.store.read("registry", "accounts")
+        if not isinstance(value, dict):
+            raise ValueError("Invalid PostgreSQL account registry")
+        self.value = value
+
+    def save(self, value):
+        self.revision = self.store.write(
+            "registry", "accounts", value, self.revision)
