@@ -64,6 +64,13 @@ BRIDGES = {
         "ghost_prefix": "@telegram_",
     },
 }
+# Deployment-provided endpoints only; never accept URLs from API callers.
+_bridge_urls = json.loads(os.environ.get("MATRIX_BRIDGE_URLS", "{}"))
+if not isinstance(_bridge_urls, dict):
+    raise ValueError("MATRIX_BRIDGE_URLS must be an object")
+for _name, _url in _bridge_urls.items():
+    if _name in BRIDGES and BRIDGES[_name]["base_url"]:
+        BRIDGES[_name]["base_url"] = _url.rstrip("/")
 BOT_MXIDS = {bridge["bot_mxid"] for bridge in BRIDGES.values()}
 WHATSAPP_ACCOUNT_LABELS = [
     label.strip()
