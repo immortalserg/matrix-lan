@@ -38,9 +38,17 @@ class Gateway:
  def __init__(self,data=DATA):
   self.data=Path(data);self.data.mkdir(parents=True,exist_ok=True);self.data.chmod(0o700)
   self.owner=json.loads(Path(os.getenv('SHOPPING_OWNER_CONFIG','/run/matrix-owner.json')).read_text())
-  self.registry_path=self.data/'accounts.json';self.registry=json.loads(self.registry_path.read_text()) if self.registry_path.exists() else {}
+  self.registry_path=self.data/'accounts.json';self.registry_backend=None
+  dsn=os.getenv('BRIDGE_STORAGE_DSN')
+  if dsn:
+   from storage import AccountRegistry
+   self.registry_backend=AccountRegistry(self.registry_path,dsn)
+   self.registry=self.registry_backend.value
+  else:self.registry=json.loads(self.registry_path.read_text()) if self.registry_path.exists() else {}
   self.contexts={};self.pages={};self.jobs={};self.states={};self.auth_cache={};self.locks={};self.pw=None;self.http=None;self.tasks=[];self.bridge=None
- def persist(self):atomic(self.registry_path,self.registry)
+ def persist(self):
+  if self.registry_backend is not None:self.registry_backend.save(self.registry)
+  else:atomic(self.registry_path,self.registry)
  async def authorize(self,request):
   raw=request.headers.get('Authorization','')
   if not raw.startswith('Bearer ') or len(raw)<12:raise web.HTTPUnauthorized(reason='Требуется вход Matrix')
