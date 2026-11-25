@@ -72,6 +72,31 @@ def drain_output(name, stream, handler):
     finally:
         handler.close()
 
+def bridge_command(argv):
+    """Use the bundled ELF interpreter for copied Alpine executables."""
+    binary = Path(argv[0])
+    roots = Path("/opt/bridge-roots")
+    if not binary.is_relative_to(roots):
+        return argv
+    root = roots / binary.relative_to(roots).parts[0]
+    if not binary.is_file():
+        raise FileNotFoundError("Bridge executable missing")
+    result = subprocess.run(["readelf", "-lW", str(binary)], capture_output=True,
+                            text=True, timeout=5, check=False)
+    if result.returncode:
+        raise OSError("Unable to inspect bridge executable")
+    match = re.search(r"Requesting program interpreter: ([^\]]+)\]", result.stdout)
+    if not match:
+        return argv
+    interpreter = Path(match.group(1))
+    if not interpreter.is_absolute() or ".." in interpreter.parts:
+        raise OSError("Invalid ELF interpreter")
+    loader = root / interpreter.relative_to("/")
+    if not loader.is_file() or not loader.resolve().is_relative_to(root.resolve()):
+        raise OSError("Bundled ELF interpreter missing or unsafe")
+    libraries = ":".join(str(root / directory) for directory in ("lib", "usr/lib", "usr/local/lib"))
+    return [str(loader), "--library-path", libraries, *argv]
+
 def launch(name, spec, env):
     directory = Path("/var/log/matrix-bridges")
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -80,7 +105,7 @@ def launch(name, spec, env):
                                   encoding="utf-8")
     handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
     try:
-        process = subprocess.Popen(spec["argv"], cwd=spec["cwd"], env=env,
+        process = subprocess.Popen(bridge_command(spec["argv"]), cwd=spec["cwd"], env=env,
                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                    start_new_session=True)
     except BaseException:
@@ -317,7 +342,7 @@ def main():
                         processes[name] = launch(name, spec, env)
                         if generation:
                             completed[name] = generation
-                    except OSError as exc:
+                    except (OSError, subprocess.SubprocessError) as exc:
                         print(f"{name}: startup failed: {type(exc).__name__}", flush=True)
                         retry[name] = time.monotonic() + 30
             for name, generation in list(completed.items()):
