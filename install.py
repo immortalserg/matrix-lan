@@ -252,6 +252,26 @@ def prepare_unified_layout(runtime, settings, tokens):
     write(target / 'Caddyfile', layout.rewrite_upstreams(caddy), 10001)
     write(target / 'layout.json', load(TEMPLATES / 'bridge-processes.json'), 10001)
     write(target / 'processes.json', unified_process_manifest(layout, settings), 10001)
+    # Build-only candidate: do not register or route traffic to unverified bridges.
+    candidate = {
+        'image': settings['project'] + '-bridges:local',
+        'build': {'context': './build', 'dockerfile': 'bridges/Dockerfile'},
+        'user': '10001:10001',
+        'init': True,
+        'profiles': ['unified-preview'],
+        'restart': 'no',
+        'cap_drop': ['ALL'],
+        'security_opt': ['no-new-privileges:true'],
+        'shm_size': '1gb',
+        'volumes': [
+            './state/unified:/data/bridges:rw',
+            './state/unified/processes.json:/etc/matrix-bridges/processes.json:ro',
+            './state/bridge-logs:/var/log/matrix-bridges:rw',
+        ],
+    }
+    write(runtime / 'compose.unified-preview.yaml',
+          {'services': {'matrix-bridges': candidate}})
+
 
 
 def configure(runtime, settings):
