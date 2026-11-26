@@ -142,14 +142,19 @@ class Handler(BaseHTTPRequestHandler):
                     role = cur.fetchone()
                     if not role:
                         raise PermissionError("Unknown Matrix-LAN user")
-                    query = "SELECT bridge,login_id,owner_mxid,created_at FROM matrix_lan_bridge_accounts"
+                    query = """SELECT a.bridge,a.login_id,a.owner_mxid,a.created_at,
+                        r.state,r.health,r.checked_at FROM matrix_lan_bridge_accounts a
+                        LEFT JOIN matrix_lan_bridge_runtime r ON r.bridge=a.bridge"""
                     if role[0] == "superuser":
-                        cur.execute(query + " ORDER BY owner_mxid,bridge,login_id")
+                        cur.execute(query + " ORDER BY a.owner_mxid,a.bridge,a.login_id")
                     else:
-                        cur.execute(query + " WHERE owner_mxid=%s ORDER BY bridge,login_id", (actor,))
+                        cur.execute(query + " WHERE a.owner_mxid=%s ORDER BY a.bridge,a.login_id", (actor,))
                     accounts = [{"bridge": bridge, "login_id": login_id,
-                                 "owner_mxid": owner, "created_at": created.isoformat()}
-                                for bridge, login_id, owner, created in cur.fetchall()]
+                                 "owner_mxid": owner, "created_at": created.isoformat(),
+                                 "bridge_runtime": {"state": state, "health": health,
+                                                    "checked_at": checked.isoformat() if checked else None},
+                                 "account_status": "unknown"}
+                                for bridge, login_id, owner, created, state, health, checked in cur.fetchall()]
             return self.send_json(200, {"accounts": accounts})
         except PermissionError:
             return self.send_json(403, {"error": "forbidden"})
