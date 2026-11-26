@@ -375,7 +375,10 @@ def prepare_unified_layout(runtime, settings, tokens):
         services['matrix-accounts']['volumes'].append(
             './state/unified/accounts.json:/data/config.json:ro')
     if 'authorization' in services:
-        services['authorization'].setdefault('environment', {})['WHATSAPP_PROVISIONING_URL'] = layout.address('whatsapp')
+        services['authorization'].setdefault('environment', {}).update({
+            'WHATSAPP_PROVISIONING_URL': layout.address('whatsapp'),
+            'TELEGRAM_PROVISIONING_URL': layout.address('telegram'),
+        })
     if 'chat-api' in services:
         services['chat-api'].setdefault('environment', {}).update({
             'MATRIX_BRIDGE_URLS': json.dumps({
