@@ -77,13 +77,13 @@ class DocumentStore:
 
 class AccountRegistry:
     """Opt-in PostgreSQL registry with one-time import of a legacy JSON file."""
-    def __init__(self, path, dsn):
+    def __init__(self, path, dsn, default=None):
         self.path = path
         self.store = DocumentStore(dsn)
         self.store.initialize()
         value, self.revision = self.store.read("registry", "accounts")
         if self.revision == 0:
-            value = json.loads(path.read_text()) if path.exists() else {}
+            value = json.loads(path.read_text()) if path.exists() else ({} if default is None else default)
             if not isinstance(value, dict):
                 raise ValueError("Invalid legacy account registry")
             try:
