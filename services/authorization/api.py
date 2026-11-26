@@ -128,7 +128,36 @@ class Handler(BaseHTTPRequestHandler):
             raise PermissionError("Superuser required")
         return mxid
 
+    def list_bridge_accounts(self):
+        try:
+            from contextlib import closing
+            authorization = self.headers.get("Authorization", "")
+            if not authorization.startswith("Bearer "):
+                raise PermissionError("Bearer token required")
+            actor = verify(authorization[7:])
+            with closing(psycopg2.connect(DSN)) as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT role FROM matrix_lan_users WHERE mxid=%s", (actor,))
+                    role = cur.fetchone()
+                    if not role:
+                        raise PermissionError("Unknown Matrix-LAN user")
+                    query = "SELECT bridge,login_id,owner_mxid,created_at FROM matrix_lan_bridge_accounts"
+                    if role[0] == "superuser":
+                        cur.execute(query + " ORDER BY owner_mxid,bridge,login_id")
+                    else:
+                        cur.execute(query + " WHERE owner_mxid=%s ORDER BY bridge,login_id", (actor,))
+                    accounts = [{"bridge": bridge, "login_id": login_id,
+                                 "owner_mxid": owner, "created_at": created.isoformat()}
+                                for bridge, login_id, owner, created in cur.fetchall()]
+            return self.send_json(200, {"accounts": accounts})
+        except PermissionError:
+            return self.send_json(403, {"error": "forbidden"})
+        except (psycopg2.Error, OSError):
+            return self.send_json(503, {"error": "backend_unavailable"})
+
     def do_GET(self):
+        if urlsplit(self.path).path == "/api/admin/bridge-accounts":
+            return self.list_bridge_accounts()
         path = urlsplit(self.path).path
         logs = re.fullmatch(r"/api/admin/bridges/([a-z0-9]+)/logs", path)
         if logs:
