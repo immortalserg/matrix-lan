@@ -87,6 +87,7 @@ $("logout").addEventListener("click", async () => {
   token = null;
   clearTimeout(bridgePoll);
   $("bridge-inventory")?.replaceChildren();
+  $("account-inventory")?.remove();
   $("admin-content").hidden = true;
   if (previous) {
     try { await fetch("/_matrix/client/v3/logout", {method:"POST", headers:{Authorization:"Bearer " + previous}}); } catch (_) {}
@@ -149,6 +150,61 @@ function logViewer(bridge) {
   auto.addEventListener("change", schedule);
   details.append(summary, refreshButton, autoLabel, output);
   return details;
+}
+async function refreshAccounts() {
+  const session = token;
+  if (!session) return;
+  let panel = $("account-inventory");
+  if (!panel) {
+    panel = document.createElement("section");
+    panel.id = "account-inventory";
+    $("admin-content").append(panel);
+  }
+  panel.replaceChildren();
+  const heading = document.createElement("h2");
+  heading.textContent = "Подключённые аккаунты";
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Обновить список";
+  button.addEventListener("click", refreshAccounts);
+  button.disabled = true;
+  const output = document.createElement("div");
+  output.style.overflowX = "auto";
+  output.textContent = "Загрузка…";
+  panel.append(heading, button, output);
+  try {
+    const data = await api("/api/admin/bridge-accounts");
+    if (session !== token || !output.isConnected) return;
+    output.replaceChildren();
+    if (!data.accounts.length) {
+      output.textContent = "В реестре пока нет аккаунтов.";
+      return;
+    }
+    const table = document.createElement("table");
+    table.style.cssText = "width:100%;border-collapse:collapse;text-align:left;overflow-wrap:anywhere";
+    const head = table.createTHead().insertRow();
+    for (const label of ["Мессенджер", "Аккаунт", "Владелец", "Последний статус", "Проверено", "Мост"]) {
+      const cell = document.createElement("th");
+      cell.scope = "col"; cell.textContent = label; cell.style.padding = "6px";
+      head.append(cell);
+    }
+    const body = table.createTBody();
+    for (const account of data.accounts) {
+      const row = body.insertRow();
+      const runtime = account.bridge_runtime;
+      for (const value of [account.bridge, account.login_id, account.owner_mxid,
+        account.account_status || "unknown",
+        account.status_checked_at ? new Date(account.status_checked_at).toLocaleString() : "Нет данных",
+        runtime?.checked_at ? runtime.state + " / " + runtime.health + " (" + new Date(runtime.checked_at).toLocaleString() + ")" : "Нет данных"]) {
+        const cell = row.insertCell();
+        cell.textContent = value;
+        cell.style.cssText = "padding:6px;border-top:1px solid #526277";
+      }
+    }
+    output.append(table);
+  } catch (error) {
+    if (session === token && output.isConnected) output.textContent = "Реестр недоступен: " + error.message;
+  } finally { button.disabled = false; }
 }
 async function refresh() {
   const [users, invites] = await Promise.all([api("/api/admin/users"),api("/api/admin/invites")]);
@@ -284,6 +340,7 @@ async function refresh() {
   } catch (error) {
     panel.append(document.createTextNode("Каталог недоступен: " + error.message));
   }
+  await refreshAccounts();
   $("users").replaceChildren();
   for (const user of users.users) {
     const li = document.createElement("li");
