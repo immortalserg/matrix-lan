@@ -38,7 +38,7 @@ def can(principal: Principal, action: str, *, target_mxid: str | None = None) ->
     required = PERMISSIONS.get(action)
     if required is None or principal.role < required:
         return False
-    if action.endswith("_own") and target_mxid != principal.mxid:
+    if action.endswith("_own") and (not target_mxid or (target_mxid != principal.mxid and principal.role != Role.SUPERUSER)):
         return False
     return True
 
