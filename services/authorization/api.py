@@ -438,6 +438,8 @@ class Handler(BaseHTTPRequestHandler):
                     if any(row["id"] == login_id for row in logins):
                         return self.send_json(409, {"error": "account_still_connected"})
                     release(conn, actor, bridge, login_id)
+                    with conn.cursor() as cur:
+                        cur.execute("INSERT INTO matrix_lan_audit (actor_mxid,target_mxid,action) VALUES (%s,%s,%s)", (actor, owner, "bridge_account_release:" + bridge))
             return self.send_json(200, {"released": True})
         except PermissionError:
             return self.send_json(403, {"error": "forbidden"})
