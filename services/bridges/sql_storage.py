@@ -1,0 +1,73 @@
+"""Compatibility layer for the fixed SQL statements in WeChat and IMO.
+
+Not a general SQLite SQL translator. Existing SQLite files are never silently
+ignored when PostgreSQL is selected.
+"""
+import os
+import re
+import sqlite3
+
+
+def connect(path):
+    dsn = os.getenv("BRIDGE_SQL_DSN")
+    if not dsn:
+        db = sqlite3.connect(path)
+        db.row_factory = sqlite3.Row
+        return db
+    if path.exists():
+        raise RuntimeError("Existing SQLite database requires explicit migration")
+    return PostgresConnection(dsn)
+
+
+class PostgresConnection:
+    def __init__(self, dsn):
+        import psycopg2
+        from psycopg2.extras import DictCursor
+        self.connection = psycopg2.connect(
+            dsn, connect_timeout=5, cursor_factory=DictCursor,
+            options="-c statement_timeout=10000 -c lock_timeout=5000")
+
+    def execute(self, sql, args=()):
+        sql = sql.strip().rstrip(";")
+        pragma = re.fullmatch(r"PRAGMA table_info\((\w+)\)", sql)
+        if pragma:
+            sql = ("SELECT ordinal_position, column_name FROM information_schema.columns "
+                   "WHERE table_schema=current_schema() AND table_name=%s")
+            args = (pragma.group(1),)
+        else:
+            if sql.startswith("INSERT OR IGNORE INTO "):
+                sql = sql.replace("INSERT OR IGNORE INTO ", "INSERT INTO ", 1)
+                sql += " ON CONFLICT DO NOTHING"
+            elif sql.startswith("INSERT OR REPLACE INTO "):
+                replacements = {
+                    "INSERT OR REPLACE INTO meta VALUES(?,?)":
+                        "INSERT INTO meta VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                    "INSERT OR REPLACE INTO users VALUES(?,?)":
+                        "INSERT INTO users VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET name=excluded.name",
+                }
+                sql = replacements[sql]
+            sql = sql.replace("substr(buid,-1)", "right(buid,1)")
+            sql = re.sub(r"\bREAL\b", "DOUBLE PRECISION", sql)
+            sql = sql.replace("?", "%s")
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute(sql, args)
+            return cursor
+        except Exception:
+            cursor.close()
+            self.connection.rollback()
+            raise
+
+    def executescript(self, script):
+        # Current schemas contain a quoted semicolon in the IMO group test.
+        statements = re.split(r";(?=(?:[^']*'[^']*')*[^']*$)", script)
+        for statement in statements:
+            statement = statement.strip()
+            if statement and not statement.startswith("PRAGMA "):
+                self.execute(statement).close()
+
+    def commit(self):
+        self.connection.commit()
+
+    def close(self):
+        self.connection.close()
