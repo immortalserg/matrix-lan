@@ -15,7 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 from urllib.parse import urlsplit, urlencode
-from bridge_accounts import claim, OwnershipConflict
+from bridge_accounts import claim, require_access, release, OwnershipConflict
 
 import psycopg2
 from registration import (
@@ -394,7 +394,52 @@ class Handler(BaseHTTPRequestHandler):
         except (psycopg2.Error, OSError, ValueError):
             return self.send_json(503, {"error": "backend_unavailable"})
 
+    def confirm_bridge_disconnect(self, bridge):
+        """Release a stale ownership record only after a fresh native inventory."""
+        from contextlib import closing
+        authorization = self.headers.get("Authorization", "")
+        if not authorization.startswith("Bearer "):
+            return self.send_json(403, {"error": "forbidden"})
+        try:
+            actor = verify(authorization[7:])
+            login_id = self.body().get("login_id")
+            if not isinstance(login_id, str) or not 0 < len(login_id) <= 1024:
+                return self.send_json(400, {"error": "invalid_login_id"})
+            with closing(psycopg2.connect(DSN)) as conn:
+                with conn:
+                    owner = require_access(conn, actor, bridge, login_id)
+                    # A superuser's own native inventory cannot establish that
+                    # another user's login has disappeared.
+                    if owner != actor:
+                        return self.send_json(409, {"error": "owner_session_required"})
+                    defaults = {"whatsapp": "http://mautrix-whatsapp:29318",
+                                "telegram": "http://mautrix-telegram:29317"}
+                    base = os.getenv(bridge.upper() + "_PROVISIONING_URL", defaults[bridge]).rstrip("/")
+                    req = Request(base + "/_matrix/provision/v3/whoami?" + urlencode({"user_id": owner}),
+                                  headers={"Authorization": authorization})
+                    with urlopen(req, timeout=12) as response:
+                        data = json.load(response)
+                    logins = data.get("logins") if isinstance(data, dict) else None
+                    if not isinstance(logins, list) or any(
+                        not isinstance(row, dict) or not isinstance(row.get("id"), str)
+                        or not row["id"] for row in logins
+                    ):
+                        return self.send_json(502, {"error": "invalid_bridge_response"})
+                    if any(row["id"] == login_id for row in logins):
+                        return self.send_json(409, {"error": "account_still_connected"})
+                    release(conn, actor, bridge, login_id)
+            return self.send_json(200, {"released": True})
+        except PermissionError:
+            return self.send_json(403, {"error": "forbidden"})
+        except (RegistrationError, ValueError):
+            return self.send_json(400, {"error": "invalid_request"})
+        except (psycopg2.Error, OSError):
+            return self.send_json(503, {"error": "backend_unavailable"})
+
     def do_POST(self):
+        disconnect = re.fullmatch(r"/api/admin/bridge-accounts/(whatsapp|telegram)/confirm-disconnect", urlsplit(self.path).path)
+        if disconnect:
+            return self.confirm_bridge_disconnect(disconnect.group(1))
         sync = re.fullmatch(r"/api/admin/bridge-accounts/(whatsapp|telegram)/sync", urlsplit(self.path).path)
         if sync:
             return self.sync_bridge_accounts(sync.group(1))
