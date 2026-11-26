@@ -39,7 +39,7 @@ COPY social/*.py social/*.js /opt/bridges/social/
 COPY shopping/*.py shopping/*.js /opt/bridges/shopping/
 COPY imo/*.py imo/*.js /opt/bridges/imo/
 COPY wechat/*.py /opt/bridges/wechat/
-COPY bridges/manager.py bridges/storage.py /opt/bridges/
+COPY bridges/manager.py bridges/storage.py bridges/sql_storage.py /opt/bridges/
 ENV PYTHONPATH=/opt/bridges
 ENV PYTHONUNBUFFERED=1
 WORKDIR /opt/bridges
