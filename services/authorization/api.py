@@ -353,7 +353,7 @@ class Handler(BaseHTTPRequestHandler):
         except (psycopg2.Error, OSError):
             return self.send_json(503, {"error": "backend_unavailable"})
 
-    def sync_whatsapp_accounts(self):
+    def sync_bridge_accounts(self, bridge):
         """Discover logins from the bridge itself, never from request JSON."""
         from contextlib import closing
         authorization = self.headers.get("Authorization", "")
@@ -367,7 +367,9 @@ class Handler(BaseHTTPRequestHandler):
                         cur.execute("SELECT 1 FROM matrix_lan_users WHERE mxid=%s", (actor,))
                         if not cur.fetchone():
                             raise PermissionError("Unknown user")
-                    base = os.getenv("WHATSAPP_PROVISIONING_URL", "http://mautrix-whatsapp:29318").rstrip("/")
+                    defaults = {"whatsapp": "http://mautrix-whatsapp:29318",
+                                "telegram": "http://mautrix-telegram:29317"}
+                    base = os.getenv(bridge.upper() + "_PROVISIONING_URL", defaults[bridge]).rstrip("/")
                     req = Request(base + "/_matrix/provision/v3/whoami?" + urlencode({"user_id": actor}),
                                   headers={"Authorization": authorization})
                     with urlopen(req, timeout=12) as response:
@@ -383,7 +385,7 @@ class Handler(BaseHTTPRequestHandler):
                         if isinstance(login_id, str) and 0 < len(login_id) <= 1024:
                             ids.add(login_id)
                     for login_id in sorted(ids):
-                        claim(conn, "whatsapp", login_id, actor)
+                        claim(conn, bridge, login_id, actor)
             return self.send_json(200, {"registered": len(ids)})
         except OwnershipConflict:
             return self.send_json(409, {"error": "account_ownership_conflict"})
@@ -393,8 +395,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(503, {"error": "backend_unavailable"})
 
     def do_POST(self):
-        if urlsplit(self.path).path == "/api/admin/bridge-accounts/whatsapp/sync":
-            return self.sync_whatsapp_accounts()
+        sync = re.fullmatch(r"/api/admin/bridge-accounts/(whatsapp|telegram)/sync", urlsplit(self.path).path)
+        if sync:
+            return self.sync_bridge_accounts(sync.group(1))
         path = urlsplit(self.path).path
         restart = re.fullmatch(r"/api/admin/bridges/([a-z0-9]+)/restart", path)
         if restart:
