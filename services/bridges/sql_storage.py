@@ -16,13 +16,32 @@ def connect(path):
         return db
     if path.exists():
         raise RuntimeError("Existing SQLite database requires explicit migration")
-    schema = None
-    if os.getenv('IMO_DATA') and path.name == 'bridge.sqlite3':
-        from pathlib import Path
-        import hashlib
-        relative = path.resolve().parent.relative_to(Path(os.environ['IMO_DATA']).resolve())
-        schema = 'imo_' + hashlib.sha256(str(relative).encode()).hexdigest()[:48]
+    schema = imo_schema(path) if os.getenv('IMO_DATA') and path.name == 'bridge.sqlite3' else None
     return PostgresConnection(dsn, schema=schema)
+
+
+def imo_schema(path):
+    from pathlib import Path
+    import hashlib
+    relative = Path(path).resolve().parent.relative_to(Path(os.environ['IMO_DATA']).resolve())
+    return 'imo_' + hashlib.sha256(str(relative).encode()).hexdigest()[:48]
+
+
+def archive_imo_schema(path):
+    """Retain inactive history without reusing its tables for another login."""
+    import secrets
+    import psycopg2
+    from psycopg2 import sql
+    from contextlib import closing
+    source = imo_schema(path)
+    archive = 'imo_archive_' + secrets.token_hex(16)
+    with closing(psycopg2.connect(os.environ['BRIDGE_SQL_DSN'], connect_timeout=5,
+                                  options="-c statement_timeout=10000 -c lock_timeout=5000")) as connection:
+        with connection:
+            with connection.cursor() as cursor:
+                cursor.execute(sql.SQL("ALTER SCHEMA {} RENAME TO {}").format(
+                    sql.Identifier(source), sql.Identifier(archive)))
+    return archive
 
 
 class PostgresConnection:
