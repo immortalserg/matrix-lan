@@ -210,6 +210,11 @@ def unified_process_manifest(layout, settings, tokens):
                 'postgresql://' + name + ':' +
                 tokens['__SECRET_DB_' + name.upper() + '__'] +
                 '@db:5432/' + name + '?sslmode=disable')
+        if name in ('imo', 'wechat'):
+            env['BRIDGE_SQL_DSN'] = (
+                'postgresql://' + name + ':' +
+                tokens['__SECRET_DB_' + name.upper() + '__'] +
+                '@db:5432/' + name + '?sslmode=disable')
         manifest[name] = {
             'argv': argv, 'cwd': cwd, 'env': env,
             'port': spec['port'], 'health_path': spec.get('health_path'),
