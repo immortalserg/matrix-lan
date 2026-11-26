@@ -14,7 +14,8 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlencode
+from bridge_accounts import claim, OwnershipConflict
 
 import psycopg2
 from registration import (
@@ -352,7 +353,48 @@ class Handler(BaseHTTPRequestHandler):
         except (psycopg2.Error, OSError):
             return self.send_json(503, {"error": "backend_unavailable"})
 
+    def sync_whatsapp_accounts(self):
+        """Discover logins from the bridge itself, never from request JSON."""
+        from contextlib import closing
+        authorization = self.headers.get("Authorization", "")
+        if not authorization.startswith("Bearer "):
+            return self.send_json(403, {"error": "forbidden"})
+        try:
+            actor = verify(authorization[7:])
+            with closing(psycopg2.connect(DSN)) as conn:
+                with conn:
+                    with conn.cursor() as cur:
+                        cur.execute("SELECT 1 FROM matrix_lan_users WHERE mxid=%s", (actor,))
+                        if not cur.fetchone():
+                            raise PermissionError("Unknown user")
+                    base = os.getenv("WHATSAPP_PROVISIONING_URL", "http://mautrix-whatsapp:29318").rstrip("/")
+                    req = Request(base + "/_matrix/provision/v3/whoami?" + urlencode({"user_id": actor}),
+                                  headers={"Authorization": authorization})
+                    with urlopen(req, timeout=12) as response:
+                        data = json.load(response)
+                    logins = data.get("logins")
+                    if not isinstance(logins, list):
+                        return self.send_json(502, {"error": "invalid_bridge_response"})
+                    ids = set()
+                    for row in logins:
+                        if not isinstance(row, dict):
+                            continue
+                        login_id = row.get("id")
+                        if isinstance(login_id, str) and 0 < len(login_id) <= 1024:
+                            ids.add(login_id)
+                    for login_id in sorted(ids):
+                        claim(conn, "whatsapp", login_id, actor)
+            return self.send_json(200, {"registered": len(ids)})
+        except OwnershipConflict:
+            return self.send_json(409, {"error": "account_ownership_conflict"})
+        except PermissionError:
+            return self.send_json(403, {"error": "forbidden"})
+        except (psycopg2.Error, OSError, ValueError):
+            return self.send_json(503, {"error": "backend_unavailable"})
+
     def do_POST(self):
+        if urlsplit(self.path).path == "/api/admin/bridge-accounts/whatsapp/sync":
+            return self.sync_whatsapp_accounts()
         path = urlsplit(self.path).path
         restart = re.fullmatch(r"/api/admin/bridges/([a-z0-9]+)/restart", path)
         if restart:
