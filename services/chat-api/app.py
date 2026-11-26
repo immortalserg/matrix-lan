@@ -814,7 +814,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(401, {"error": "unauthorized"})
             return
         platform = parse_qs(parsed.query).get("platform", [""])[0]
-        if platform != "whatsapp":
+        if platform not in ("whatsapp", "telegram"):
             self.send_json(503, {"error": "platform_pending_multi_user_migration"})
             return
         try:
@@ -831,8 +831,28 @@ class Handler(BaseHTTPRequestHandler):
             if status != 200:
                 self.send_json(502, {"error": "bridge_unavailable"})
                 return
-            accounts = [{"login_id": row["id"], "name": row.get("name") or "WhatsApp", "status": (row.get("state") or {}).get("state_event", "UNKNOWN")} for row in data.get("logins", []) if isinstance(row, dict) and isinstance(row.get("id"), str)]
-            self.send_json(200, {"platform": platform, "accounts": accounts})
+            accounts = [{"login_id": row["id"], "name": row.get("name") or platform.title(), "status": (row.get("state") or {}).get("state_event", "UNKNOWN")} for row in data.get("logins", []) if isinstance(row, dict) and isinstance(row.get("id"), str)]
+            # Reconcile through the trusted authorization service before exposing
+            # account choices. The service independently verifies the Matrix token.
+            auth_base = os.getenv("MATRIX_LAN_AUTH_URL", "http://authorization:8081").rstrip("/")
+            sync_status, sync_data = json_request(
+                auth_base + "/api/admin/bridge-accounts/" + platform + "/sync",
+                "POST", {"Authorization": token}, body={}, timeout=30)
+            if sync_status != 200:
+                self.send_json(409 if sync_status == 409 else 503,
+                               {"error": "account_ownership_conflict" if sync_status == 409 else "account_registry_unavailable"})
+                return
+            # Use the authoritative registered inventory to filter the earlier
+            # bridge snapshot, including logins that changed during reconciliation.
+            registry_status, registry = json_request(
+                auth_base + "/api/admin/bridge-accounts", "GET", {"Authorization": token})
+            if registry_status != 200:
+                self.send_json(503, {"error": "account_registry_unavailable"})
+                return
+            owned = {row["login_id"] for row in registry.get("accounts", [])
+                     if row.get("bridge") == platform and row.get("owner_mxid") == mxid}
+            self.send_json(200, {"platform": platform, "accounts": [
+                row for row in accounts if row["login_id"] in owned]})
         except UpstreamError as exc:
             self.send_json(exc.status, {"error": exc.code})
 
