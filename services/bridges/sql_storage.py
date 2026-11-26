@@ -16,16 +16,32 @@ def connect(path):
         return db
     if path.exists():
         raise RuntimeError("Existing SQLite database requires explicit migration")
-    return PostgresConnection(dsn)
+    schema = None
+    if os.getenv('IMO_DATA') and path.name == 'bridge.sqlite3':
+        from pathlib import Path
+        import hashlib
+        relative = path.resolve().parent.relative_to(Path(os.environ['IMO_DATA']).resolve())
+        schema = 'imo_' + hashlib.sha256(str(relative).encode()).hexdigest()[:48]
+    return PostgresConnection(dsn, schema=schema)
 
 
 class PostgresConnection:
-    def __init__(self, dsn):
+    def __init__(self, dsn, schema=None):
         import psycopg2
         from psycopg2.extras import DictCursor
         self.connection = psycopg2.connect(
             dsn, connect_timeout=5, cursor_factory=DictCursor,
             options="-c statement_timeout=10000 -c lock_timeout=5000")
+        if schema is not None:
+            from psycopg2 import sql
+            try:
+                with self.connection.cursor() as cursor:
+                    cursor.execute(sql.SQL("CREATE SCHEMA IF NOT EXISTS {}").format(sql.Identifier(schema)))
+                    cursor.execute(sql.SQL("SET search_path TO {}").format(sql.Identifier(schema)))
+                self.connection.commit()
+            except Exception:
+                self.connection.close()
+                raise
 
     def execute(self, sql, args=()):
         sql = sql.strip().rstrip(";")
