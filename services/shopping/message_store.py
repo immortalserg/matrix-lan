@@ -3,14 +3,18 @@
 An interrupted native send is uncertain and is never automatically replayed.
 This prevents duplicate seller messages after a timeout or process restart.
 """
-import sqlite3,json,time,hashlib,re
+import sqlite3,json,time,hashlib,re,os
 
 class MessageStore:
  def __init__(self,path):
-  self.db=sqlite3.connect(path);self.db.row_factory=sqlite3.Row
+  if os.getenv('BRIDGE_STORAGE_DSN'):
+   from sql_storage import connect
+   self.db=connect(path)
+  else:
+   self.db=sqlite3.connect(path);self.db.row_factory=sqlite3.Row
   self.db.executescript('''PRAGMA journal_mode=WAL;
 CREATE TABLE IF NOT EXISTS chats(slot TEXT,cid TEXT,name TEXT,room_id TEXT,PRIMARY KEY(slot,cid),UNIQUE(room_id));
-CREATE TABLE IF NOT EXISTS inbox(slot TEXT,cid TEXT,msgid TEXT,body TEXT NOT NULL,own INTEGER NOT NULL,ts INTEGER NOT NULL,kind TEXT NOT NULL,sender TEXT NOT NULL,event_id TEXT,PRIMARY KEY(slot,cid,msgid));
+CREATE TABLE IF NOT EXISTS inbox(slot TEXT,cid TEXT,msgid TEXT,body TEXT NOT NULL,own INTEGER NOT NULL,ts BIGINT NOT NULL,kind TEXT NOT NULL,sender TEXT NOT NULL,event_id TEXT,PRIMARY KEY(slot,cid,msgid));
 CREATE TABLE IF NOT EXISTS outbox(event_id TEXT PRIMARY KEY,slot TEXT,cid TEXT,body TEXT,state TEXT NOT NULL DEFAULT 'pending',native_id TEXT,error TEXT,created REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS transactions(txn_id TEXT PRIMARY KEY,received REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS cursors(slot TEXT,cid TEXT,value TEXT NOT NULL,PRIMARY KEY(slot,cid));
@@ -20,7 +24,7 @@ CREATE TABLE IF NOT EXISTS cursors(slot TEXT,cid TEXT,value TEXT NOT NULL,PRIMAR
   if 'attachments' not in {r['name'] for r in self.db.execute('PRAGMA table_info(inbox)')}:self.db.execute("ALTER TABLE inbox ADD COLUMN attachments TEXT NOT NULL DEFAULT '[]'")
   self.db.execute('CREATE TABLE IF NOT EXISTS media_parts(slot TEXT,cid TEXT,msgid TEXT,part INTEGER,descriptor TEXT NOT NULL,content TEXT,event_id TEXT,attempts INTEGER NOT NULL DEFAULT 0,next_retry REAL NOT NULL DEFAULT 0,error TEXT,PRIMARY KEY(slot,cid,msgid,part))')
   if 'fallback_event' not in {r['name'] for r in self.db.execute('PRAGMA table_info(media_parts)')}:self.db.execute('ALTER TABLE media_parts ADD COLUMN fallback_event TEXT')
-  if 'queued_at' not in {r['name'] for r in self.db.execute('PRAGMA table_info(media_parts)')}:self.db.execute('ALTER TABLE media_parts ADD COLUMN queued_at INTEGER NOT NULL DEFAULT 0')
+  if 'queued_at' not in {r['name'] for r in self.db.execute('PRAGMA table_info(media_parts)')}:self.db.execute('ALTER TABLE media_parts ADD COLUMN queued_at BIGINT NOT NULL DEFAULT 0')
   self.db.execute('UPDATE media_parts SET queued_at=? WHERE queued_at=0',(int(time.time()*1000),))
   self.db.execute('CREATE TABLE IF NOT EXISTS message_repairs(slot TEXT,cid TEXT,msgid TEXT,old_event TEXT,done INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(slot,cid,msgid))')
   self.db.execute("UPDATE outbox SET state='uncertain',error='Соединение прервалось во время отправки; автоматический повтор отключён' WHERE state='sending'")
