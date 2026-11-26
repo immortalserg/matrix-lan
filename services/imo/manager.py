@@ -69,7 +69,13 @@ class AccountBridge(MediaBridge):
 class Manager:
  def __init__(self,data=DATA):
   self.data=Path(data);self.registry_path=self.data/'accounts-registry.json'
-  self.registry=json.loads(self.registry_path.read_text(encoding='utf8')) if self.registry_path.exists() else {'primary':{'legacy':True}}
+  self.registry_backend=None
+  if os.getenv('BRIDGE_STORAGE_DSN'):
+   from storage import AccountRegistry
+   self.registry_backend=AccountRegistry(self.registry_path,os.environ['BRIDGE_STORAGE_DSN'],default={'primary':{'legacy':True}})
+   self.registry=self.registry_backend.value
+  else:
+   self.registry=json.loads(self.registry_path.read_text(encoding='utf8')) if self.registry_path.exists() else {'primary':{'legacy':True}}
   if 'primary' not in self.registry:raise RuntimeError('Original IMO account is missing from registry')
   if any(not re.fullmatch(r'primary|[0-9a-f]{32}',s) for s in self.registry):raise RuntimeError('Invalid IMO account registry')
   self.account_change_lock=asyncio.Lock();self.accounts={};self.jobs={};self.browser=None;self.pw=None;self.browser_lock=asyncio.Lock();self.launch_limit=asyncio.Semaphore(2);self.media_limit=asyncio.Semaphore(2);self.housekeeper=None;self.started=False
@@ -78,7 +84,9 @@ class Manager:
   path=self.data if slot=='primary' else self.data/'accounts'/slot
   path.mkdir(parents=True,exist_ok=True);os.chmod(path,0o700)
   b=AccountBridge(path,self,slot,legacy);self.accounts[slot]=b;return b
- def persist(self):atomic_json(self.registry_path,self.registry)
+ def persist(self):
+  if self.registry_backend:self.registry_backend.save(self.registry)
+  else:atomic_json(self.registry_path,self.registry)
  async def get_browser(self):
   async with self.browser_lock:
    if not self.browser or not self.browser.is_connected():
