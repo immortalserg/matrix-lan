@@ -9,7 +9,7 @@ import sqlite3
 
 
 def connect(path):
-    dsn = os.getenv("BRIDGE_SQL_DSN")
+    dsn = os.getenv("BRIDGE_SQL_DSN") or os.getenv("BRIDGE_STORAGE_DSN")
     if not dsn:
         db = sqlite3.connect(path)
         db.row_factory = sqlite3.Row
@@ -31,7 +31,7 @@ class PostgresConnection:
         sql = sql.strip().rstrip(";")
         pragma = re.fullmatch(r"PRAGMA table_info\((\w+)\)", sql)
         if pragma:
-            sql = ("SELECT ordinal_position, column_name FROM information_schema.columns "
+            sql = ("SELECT ordinal_position, column_name AS name FROM information_schema.columns "
                    "WHERE table_schema=current_schema() AND table_name=%s")
             args = (pragma.group(1),)
         else:
@@ -40,6 +40,8 @@ class PostgresConnection:
                 sql += " ON CONFLICT DO NOTHING"
             elif sql.startswith("INSERT OR REPLACE INTO "):
                 replacements = {
+                    "INSERT OR REPLACE INTO cursors VALUES(?,?,?)":
+                        "INSERT INTO cursors VALUES(?,?,?) ON CONFLICT(slot,cid) DO UPDATE SET value=excluded.value",
                     "INSERT OR REPLACE INTO meta VALUES(?,?)":
                         "INSERT INTO meta VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
                     "INSERT OR REPLACE INTO users VALUES(?,?)":
@@ -65,6 +67,20 @@ class PostgresConnection:
             statement = statement.strip()
             if statement and not statement.startswith("PRAGMA "):
                 self.execute(statement).close()
+
+    def executemany(self, sql, rows):
+        for args in rows:
+            self.execute(sql, args).close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):
+        if exc_type is None:
+            self.commit()
+        else:
+            self.connection.rollback()
+        return False
 
     def commit(self):
         self.connection.commit()
