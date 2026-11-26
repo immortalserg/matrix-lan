@@ -3,14 +3,18 @@
 An interrupted native send is uncertain and is never automatically replayed.
 This prevents duplicate seller messages after a timeout or process restart.
 """
-import sqlite3,json,time,hashlib,re
+import sqlite3,json,time,hashlib,re,os
 
 class MessageStore:
  def __init__(self,path):
-  self.db=sqlite3.connect(path);self.db.row_factory=sqlite3.Row
+  if os.getenv('BRIDGE_STORAGE_DSN'):
+   from sql_storage import connect
+   self.db=connect(path)
+  else:
+   self.db=sqlite3.connect(path);self.db.row_factory=sqlite3.Row
   self.db.executescript('''PRAGMA journal_mode=WAL;
 CREATE TABLE IF NOT EXISTS chats(slot TEXT,cid TEXT,name TEXT,room_id TEXT,PRIMARY KEY(slot,cid),UNIQUE(room_id));
-CREATE TABLE IF NOT EXISTS inbox(slot TEXT,cid TEXT,msgid TEXT,body TEXT NOT NULL,own INTEGER NOT NULL,ts INTEGER NOT NULL,kind TEXT NOT NULL,sender TEXT NOT NULL,event_id TEXT,PRIMARY KEY(slot,cid,msgid));
+CREATE TABLE IF NOT EXISTS inbox(slot TEXT,cid TEXT,msgid TEXT,body TEXT NOT NULL,own INTEGER NOT NULL,ts BIGINT NOT NULL,kind TEXT NOT NULL,sender TEXT NOT NULL,event_id TEXT,PRIMARY KEY(slot,cid,msgid));
 CREATE TABLE IF NOT EXISTS outbox(event_id TEXT PRIMARY KEY,slot TEXT,cid TEXT,body TEXT,state TEXT NOT NULL DEFAULT 'pending',native_id TEXT,error TEXT,created REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS transactions(txn_id TEXT PRIMARY KEY,received REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS cursors(slot TEXT,cid TEXT,value TEXT NOT NULL,PRIMARY KEY(slot,cid));
