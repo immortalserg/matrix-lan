@@ -143,7 +143,7 @@ class Handler(BaseHTTPRequestHandler):
                     if not role:
                         raise PermissionError("Unknown Matrix-LAN user")
                     query = """SELECT a.bridge,a.login_id,a.owner_mxid,a.created_at,
-                        r.state,r.health,r.checked_at FROM matrix_lan_bridge_accounts a
+                        r.state,r.health,r.checked_at,a.account_status,a.status_checked_at FROM matrix_lan_bridge_accounts a
                         LEFT JOIN matrix_lan_bridge_runtime r ON r.bridge=a.bridge"""
                     if role[0] == "superuser":
                         cur.execute(query + " ORDER BY a.owner_mxid,a.bridge,a.login_id")
@@ -153,8 +153,9 @@ class Handler(BaseHTTPRequestHandler):
                                  "owner_mxid": owner, "created_at": created.isoformat(),
                                  "bridge_runtime": {"state": state, "health": health,
                                                     "checked_at": checked.isoformat() if checked else None},
-                                 "account_status": "unknown"}
-                                for bridge, login_id, owner, created, state, health, checked in cur.fetchall()]
+                                 "account_status": account_status,
+                                 "status_checked_at": status_checked.isoformat() if status_checked else None}
+                                for bridge, login_id, owner, created, state, health, checked, account_status, status_checked in cur.fetchall()]
             return self.send_json(200, {"accounts": accounts})
         except PermissionError:
             return self.send_json(403, {"error": "forbidden"})
@@ -382,15 +383,19 @@ class Handler(BaseHTTPRequestHandler):
                     logins = data.get("logins")
                     if not isinstance(logins, list):
                         return self.send_json(502, {"error": "invalid_bridge_response"})
-                    ids = set()
+                    ids = {}
                     for row in logins:
                         if not isinstance(row, dict):
                             continue
                         login_id = row.get("id")
                         if isinstance(login_id, str) and 0 < len(login_id) <= 1024:
-                            ids.add(login_id)
+                            state = row.get('state')
+                            event = state.get('state_event') if isinstance(state, dict) else None
+                            ids[login_id] = event if isinstance(event, str) and 0 < len(event) <= 64 else 'unknown'
                     for login_id in sorted(ids):
                         claim(conn, bridge, login_id, actor)
+                        with conn.cursor() as cur:
+                            cur.execute("UPDATE matrix_lan_bridge_accounts SET account_status=%s,status_checked_at=now() WHERE bridge=%s AND login_id=%s AND owner_mxid=%s", (ids[login_id], bridge, login_id, actor))
             return self.send_json(200, {"registered": len(ids)})
         except OwnershipConflict:
             return self.send_json(409, {"error": "account_ownership_conflict"})
