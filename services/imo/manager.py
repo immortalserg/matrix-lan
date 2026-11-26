@@ -168,6 +168,10 @@ class Manager:
    # Keep the old room/message mapping as an inactive archive. It must never
    # be loaded into a subsequently connected account.
    archive=self.data/'removed-account-history'/(slot+'-'+secrets.token_hex(8));archive.mkdir(parents=True,mode=0o700)
+   if os.getenv('BRIDGE_SQL_DSN'):
+    from sql_storage import archive_imo_schema
+    schema=archive_imo_schema(directory/'bridge.sqlite3')
+    atomic_json(archive/'postgres-archive.json',{'schema':schema,'slot':slot,'login_id':login_id})
    for name in ['bridge.sqlite3','bridge.sqlite3-wal','bridge.sqlite3-shm']:
     source=directory/name
     if source.exists():os.replace(source,archive/name)
