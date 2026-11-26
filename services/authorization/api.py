@@ -380,13 +380,14 @@ class Handler(BaseHTTPRequestHandler):
                                   headers={"Authorization": authorization})
                     with urlopen(req, timeout=12) as response:
                         data = json.load(response)
-                    logins = data.get("logins")
-                    if not isinstance(logins, list):
+                    logins = data.get("logins") if isinstance(data, dict) else None
+                    if not isinstance(logins, list) or any(
+                        not isinstance(row, dict) or not isinstance(row.get("id"), str)
+                        or not 0 < len(row["id"]) <= 1024 for row in logins
+                    ):
                         return self.send_json(502, {"error": "invalid_bridge_response"})
                     ids = {}
                     for row in logins:
-                        if not isinstance(row, dict):
-                            continue
                         login_id = row.get("id")
                         if isinstance(login_id, str) and 0 < len(login_id) <= 1024:
                             state = row.get('state')
