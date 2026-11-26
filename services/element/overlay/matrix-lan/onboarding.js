@@ -155,29 +155,45 @@ async function refreshAccounts() {
   const session = token;
   if (!session) return;
   let panel = $("account-inventory");
-  if (!panel) {
-    panel = document.createElement("section");
-    panel.id = "account-inventory";
-    $("admin-content").append(panel);
-  }
-  panel.replaceChildren();
+  if (panel?.reloadAccounts) return panel.reloadAccounts();
+  panel = document.createElement("section");
+  panel.id = "account-inventory";
+  $("admin-content").append(panel);
   const heading = document.createElement("h2");
   heading.textContent = "Подключённые аккаунты";
   const button = document.createElement("button");
   button.type = "button";
   button.textContent = "Обновить список";
-  button.addEventListener("click", refreshAccounts);
-  button.disabled = true;
+  const search = document.createElement("input");
+  search.placeholder = "Поиск аккаунта или владельца";
+  search.setAttribute("aria-label", search.placeholder);
+  const bridge = document.createElement("select");
+  const owner = document.createElement("select");
+  bridge.setAttribute("aria-label", "Мессенджер");
+  owner.setAttribute("aria-label", "Владелец");
+  const status = document.createElement("p");
+  status.setAttribute("aria-live", "polite");
   const output = document.createElement("div");
   output.style.overflowX = "auto";
-  output.textContent = "Загрузка…";
-  panel.append(heading, button, output);
-  try {
-    const data = await api("/api/admin/bridge-accounts");
-    if (session !== token || !output.isConnected) return;
+  panel.append(heading, search, bridge, owner, button, status, output);
+  let accounts = [];
+  let busy = false;
+  function options(select, values, label) {
+    const selected = select.value;
+    select.replaceChildren(new Option(label, ""));
+    for (const value of [...new Set(values)].sort()) select.add(new Option(value, value));
+    if (selected && !values.includes(selected)) select.add(new Option(selected, selected));
+    select.value = selected;
+  }
+  function render() {
+    const q = search.value.trim().toLowerCase();
+    const filtered = accounts.filter(a =>
+      (!bridge.value || a.bridge === bridge.value) &&
+      (!owner.value || a.owner_mxid === owner.value) &&
+      (!q || [a.bridge,a.login_id,a.owner_mxid].some(v => String(v).toLowerCase().includes(q))));
     output.replaceChildren();
-    if (!data.accounts.length) {
-      output.textContent = "В реестре пока нет аккаунтов.";
+    if (!filtered.length) {
+      output.textContent = accounts.length ? "Нет совпадений." : "В реестре пока нет аккаунтов.";
       return;
     }
     const table = document.createElement("table");
@@ -189,7 +205,7 @@ async function refreshAccounts() {
       head.append(cell);
     }
     const body = table.createTBody();
-    for (const account of data.accounts) {
+    for (const account of filtered) {
       const row = body.insertRow();
       const runtime = account.bridge_runtime;
       for (const value of [account.bridge, account.login_id, account.owner_mxid,
@@ -202,9 +218,39 @@ async function refreshAccounts() {
       }
     }
     output.append(table);
-  } catch (error) {
-    if (session === token && output.isConnected) output.textContent = "Реестр недоступен: " + error.message;
-  } finally { button.disabled = false; }
+
+  }
+  async function load() {
+    if (busy || session !== token || !panel.isConnected) return;
+    busy = true;
+    button.disabled = true;
+    try {
+      const data = await api("/api/admin/bridge-accounts");
+      if (session !== token || !panel.isConnected) return;
+      accounts = data.accounts;
+      options(bridge, accounts.map(a => a.bridge), "Все мессенджеры");
+      options(owner, accounts.map(a => a.owner_mxid), "Все владельцы");
+      render();
+      status.textContent = "Реестр обновлён: " + new Date().toLocaleTimeString();
+    } catch (error) {
+      if (session === token && panel.isConnected)
+        status.textContent = "Не удалось обновить реестр; данные могут быть устаревшими: " + error.message;
+    } finally { busy = false; button.disabled = false; }
+  }
+  panel.reloadAccounts = load;
+  button.addEventListener("click", load);
+  search.addEventListener("input", render);
+  bridge.addEventListener("change", render);
+  owner.addEventListener("change", render);
+  function poll() {
+    setTimeout(async () => {
+      if (session !== token || !panel.isConnected) return;
+      if (!document.hidden) await load();
+      poll();
+    }, 15000);
+  }
+  await load();
+  poll();
 }
 async function refresh() {
   const [users, invites] = await Promise.all([api("/api/admin/users"),api("/api/admin/invites")]);
