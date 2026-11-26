@@ -35,7 +35,11 @@ class Bridge:
  def __init__(self,data=None):
   self.data=Path(data) if data else DATA;self.data.mkdir(parents=True,exist_ok=True)
   self.before_bind=None
-  self.db=sqlite3.connect(self.data/'bridge.sqlite3'); self.db.row_factory=sqlite3.Row
+  if os.getenv('BRIDGE_SQL_DSN'):
+   from sql_storage import connect
+   self.db=connect(self.data/'bridge.sqlite3')
+  else:
+   self.db=sqlite3.connect(self.data/'bridge.sqlite3'); self.db.row_factory=sqlite3.Row
   self.db.executescript('''PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;
    CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY,value TEXT);
    CREATE TABLE IF NOT EXISTS portals(buid TEXT PRIMARY KEY,room_id TEXT UNIQUE,name TEXT,start_ts TEXT,cursor TEXT);
