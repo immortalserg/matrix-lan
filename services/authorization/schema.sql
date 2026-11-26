@@ -67,4 +67,17 @@ CREATE TABLE IF NOT EXISTS matrix_lan_bridge_restart (
 );
 ALTER TABLE matrix_lan_telegram_credentials
     ADD COLUMN IF NOT EXISTS applied_at TIMESTAMPTZ;
+-- Native login identifiers are scoped to a bridge. Ownership is enforced
+-- by application APIs, not by per-user PostgreSQL roles.
+CREATE TABLE IF NOT EXISTS matrix_lan_bridge_accounts (
+    bridge TEXT NOT NULL,
+    login_id TEXT NOT NULL,
+    owner_mxid TEXT NOT NULL REFERENCES matrix_lan_users(mxid),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (bridge, login_id),
+    CHECK (length(bridge) BETWEEN 1 AND 64),
+    CHECK (length(login_id) BETWEEN 1 AND 1024)
+);
+CREATE INDEX IF NOT EXISTS matrix_lan_bridge_accounts_owner_idx
+    ON matrix_lan_bridge_accounts(owner_mxid, bridge);
 COMMIT;
