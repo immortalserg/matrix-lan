@@ -31,8 +31,12 @@ class Bridge:
         self.c = json.loads((self.root/'config.json').read_text())
         self.key = Path(self.c['native_key_file']).read_text().strip()
         self.native_url = self.c.get('native_url', 'http://127.0.0.1:6174').rstrip('/')
-        self.db = sqlite3.connect(self.root/'bridge.sqlite3')
-        self.db.row_factory = sqlite3.Row
+        if os.getenv('BRIDGE_SQL_DSN'):
+            from sql_storage import connect
+            self.db = connect(self.root/'bridge.sqlite3')
+        else:
+            self.db = sqlite3.connect(self.root/'bridge.sqlite3')
+            self.db.row_factory = sqlite3.Row
         self.db.executescript('''PRAGMA journal_mode=WAL;
         CREATE TABLE IF NOT EXISTS accounts(id TEXT PRIMARY KEY, enabled INTEGER NOT NULL DEFAULT 1, space TEXT, cursor TEXT NOT NULL DEFAULT '0', name TEXT, error TEXT, last_ok REAL);
         CREATE TABLE IF NOT EXISTS logins(id TEXT PRIMARY KEY, account TEXT, operation TEXT, created REAL);
