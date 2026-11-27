@@ -19,7 +19,7 @@ CONFIG=json.loads((DATA/'config.json').read_text())
 OWNER=CONFIG['owner']; SERVER=CONFIG['server_name']; BOT='@imobot:'+SERVER
 HS=CONFIG.get('homeserver','http://synapse:8008')
 PINNED_ENTRY='index-DfHwkxRy.js'
-HOOK=Path('/bridge/hook.js').read_text()
+HOOK=(Path(__file__).resolve().parent / 'hook.js').read_text()
 def digest(value): return hashlib.sha256(value.encode()).hexdigest()
 def q(value): return quote(str(value),safe='')
 MEDIA_TYPES={'photo_uploaded':'Фото','photo_uploaded_2':'Фото','video_uploaded':'Видео','video_uploaded_2':'Видео','audio_uploaded':'Голосовое сообщение','file_uploaded':'Файл','bigo_uploaded':'Вложение','sticker':'Стикер'}
