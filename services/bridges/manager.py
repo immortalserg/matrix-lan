@@ -368,5 +368,27 @@ def main():
         except Exception as exc:
             print(f"Shutdown publication failed: {type(exc).__name__}", flush=True)
 
+def preflight():
+    """Check staged launch commands without starting bridges or contacting databases."""
+    specs = json.loads(MANIFEST.read_text())
+    failed = False
+    for name, spec in sorted(specs.items()):
+        try:
+            if not Path(spec["cwd"]).is_dir():
+                raise OSError("Working directory missing")
+            command = bridge_command(spec["argv"])
+            import shutil
+            if not shutil.which(command[0]):
+                raise OSError("Executable missing or not executable")
+            print(f"{name}: launch path OK", flush=True)
+        except (OSError, ValueError, KeyError, IndexError, subprocess.SubprocessError) as exc:
+            failed = True
+            print(f"{name}: preflight failed: {type(exc).__name__}", flush=True)
+    return 1 if failed else 0
+
+
 if __name__ == "__main__":
+    import sys
+    if sys.argv[1:] == ["--preflight"]:
+        sys.exit(preflight())
     main()
