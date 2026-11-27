@@ -71,6 +71,18 @@ def compose(runtime, *args, **kwargs):
                     '-f', str(runtime / 'compose.yaml'), *args], **kwargs)
 
 
+def unified_preflight(runtime):
+    """Build and check the candidate without starting or replacing live services."""
+    candidate = runtime / 'compose.unified-candidate.yaml'
+    if not candidate.is_file():
+        raise ValueError('Unified candidate missing; prepare a fresh runtime first.')
+    prefix = ['docker', 'compose', '--project-directory', str(runtime),
+              '-f', str(candidate)]
+    command([*prefix, 'config', '--quiet'])
+    command([*prefix, 'build', 'matrix-bridges'])
+    command([*prefix, 'run', '--rm', '--no-deps', 'matrix-bridges', '--preflight'])
+
+
 def credentials(path):
     if not path:
         return None
@@ -648,6 +660,7 @@ def main():
     p.add_argument('--cbmrs-origin', default='')
     for action in ('start', 'status', 'stop', 'password', 'ca', 'bridge-catalog'):
         sub.add_parser(action)
+    sub.add_parser('unified-preflight', help='Build and diagnose the staged unified bridge container.')
     bridge_parser = sub.add_parser('enable-bridge', help='Add WhatsApp or Telegram to an existing installation.')
     bridge_parser.add_argument('bridge', choices=('whatsapp', 'telegram'))
     bridge_parser.add_argument('--telegram-config', type=Path)
@@ -685,7 +698,9 @@ def main():
     else:
         if os.name != 'posix' or os.geteuid() != 0:
             raise ValueError('Run on the Linux Docker host with sudo so bind mounts have the correct owner.')
-        if args.action == 'enable-telegram':
+        if args.action == 'unified-preflight':
+            unified_preflight(runtime)
+        elif args.action == 'enable-telegram':
             enable_bridge(runtime, settings, auth_file, 'telegram', args.telegram_config)
         elif args.action == 'enable-bridge':
             enable_bridge(runtime, settings, auth_file, args.bridge, args.telegram_config)
