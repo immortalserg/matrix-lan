@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS matrix_lan_bridge_accounts (
 );
 CREATE INDEX IF NOT EXISTS matrix_lan_bridge_accounts_owner_idx
     ON matrix_lan_bridge_accounts(owner_mxid, bridge);
-COMMIT;
-
 ALTER TABLE matrix_lan_bridge_accounts ADD COLUMN IF NOT EXISTS account_status TEXT NOT NULL DEFAULT 'unknown';
 ALTER TABLE matrix_lan_bridge_accounts ADD COLUMN IF NOT EXISTS status_checked_at TIMESTAMPTZ;
+
+COMMIT;
