@@ -73,7 +73,7 @@ def compose(runtime, *args, **kwargs):
 
 def unified_preflight(runtime):
     """Build and check the candidate without starting or replacing live services."""
-    candidate = runtime / 'compose.unified-candidate.yaml'
+    candidate = runtime / 'compose.yaml'
     if not candidate.is_file():
         raise ValueError('Unified candidate missing; prepare a fresh runtime first.')
     prefix = ['docker', 'compose', '--project-directory', str(runtime),
@@ -327,8 +327,6 @@ def prepare_unified_layout(runtime, settings, tokens):
             './state/bridge-logs:/var/log/matrix-bridges:rw',
         ],
     }
-    write(runtime / 'compose.unified-preview.yaml',
-          {'services': {'matrix-bridges': candidate}})
 
     # Generate a complete alternative Compose model, not an overlay: overlays
     # cannot reliably remove the old services and their dependencies.
@@ -406,7 +404,6 @@ def prepare_unified_layout(runtime, settings, tokens):
     write(caddy_path, caddy_path.read_text(encoding='utf-8').replace(
         'wechat-native:29391', 'matrix-bridges:29391'), 10001)
     # Candidate only: do not let the normal start command select this file.
-    write(runtime / 'compose.unified-candidate.yaml', alternative)
     write(runtime / 'compose.yaml', alternative)
 
 
@@ -591,59 +588,6 @@ def start(runtime, settings, auth_file):
 
 
 
-def enable_bridge(runtime, settings, auth_file, bridge, config_path=None):
-    """Add one bridge to an existing installation without re-preparing runtime."""
-    if not settings['owner_token']:
-        raise ValueError('Start Matrix LAN and initialize the owner before adding bridges.')
-    if bridge not in ('telegram', 'whatsapp'):
-        raise ValueError('Supported bridges: telegram, whatsapp.')
-    service = 'mautrix-' + bridge
-    if service in settings['services']:
-        raise ValueError(f'{bridge} is already configured.')
-    if bridge == 'telegram':
-        if config_path is None:
-            raise ValueError('Telegram requires a JSON credentials file with api_id and api_hash.')
-        settings['telegram'] = credentials(config_path)
-
-    tokens = replacements(settings)
-    state = runtime / 'state'
-    name = REGISTRATION_FOR[service]
-    registration = render(load(TEMPLATES / 'registrations' / (name + '.json')), tokens)
-    config = render(load(TEMPLATES / 'config' / (bridge + '.json')), tokens)
-    if bridge == 'telegram':
-        config['network']['api_id'] = settings['telegram']['api_id']
-
-    # Write bridge configuration before registering it with Synapse.
-    state_directory(state / bridge, 1337)
-    write(state / bridge / 'config.yaml', config, 1337)
-    write(state / bridge / 'registration.yaml', registration, 1337)
-    write(state / 'synapse' / name, registration, 991)
-
-    homeserver_path = state / 'synapse' / 'homeserver.yaml'
-    homeserver = load(homeserver_path)
-    appservice_path = '/data/' + name
-    if appservice_path not in homeserver['app_service_config_files']:
-        homeserver['app_service_config_files'].append(appservice_path)
-
-    updated_settings = dict(settings)
-    updated_settings['services'] = [*settings['services'], service]
-    updated_compose = compose_spec(updated_settings, tokens)
-    # Validate candidate Compose config before changing the running installation.
-    with tempfile.TemporaryDirectory(prefix='bridge-check-', dir=runtime) as temp:
-        candidate = Path(temp) / 'compose.yaml'
-        write(candidate, updated_compose)
-        command(['docker', 'compose', '--project-directory', str(runtime),
-                 '-f', str(candidate), 'config', '--quiet'])
-
-    write(homeserver_path, homeserver, 991)
-    write(runtime / 'compose.yaml', updated_compose)
-    write(auth_file, updated_settings)
-    compose(runtime, 'restart', 'synapse')
-    compose(runtime, 'up', '-d', '--no-deps', service)
-    print(f'{bridge.capitalize()} bridge enabled. Connect the account from Element.')
-
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--runtime', type=Path, default=ROOT/'runtime', help='Private local state directory.')
@@ -662,10 +606,6 @@ def main():
     for action in ('start', 'status', 'stop', 'password', 'ca', 'bridge-catalog'):
         sub.add_parser(action)
     sub.add_parser('unified-preflight', help='Build and diagnose the staged unified bridge container.')
-    bridge_parser = sub.add_parser('enable-bridge', help='Add WhatsApp or Telegram to an existing installation.')
-    bridge_parser.add_argument('bridge', choices=('whatsapp', 'telegram'))
-    bridge_parser.add_argument('--telegram-config', type=Path)
-    sub.add_parser('enable-telegram').add_argument('telegram_config', type=Path)
     args = parser.parse_args()
     runtime = args.runtime.resolve()
     auth_file = runtime / 'bootstrap.private.json'
@@ -701,10 +641,6 @@ def main():
             raise ValueError('Run on the Linux Docker host with sudo so bind mounts have the correct owner.')
         if args.action == 'unified-preflight':
             unified_preflight(runtime)
-        elif args.action == 'enable-telegram':
-            enable_bridge(runtime, settings, auth_file, 'telegram', args.telegram_config)
-        elif args.action == 'enable-bridge':
-            enable_bridge(runtime, settings, auth_file, args.bridge, args.telegram_config)
         else:
             start(runtime, settings, auth_file)
 
