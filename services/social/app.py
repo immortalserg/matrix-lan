@@ -108,7 +108,7 @@ class Gateway:
  async def handler(self,request):
   await self.authorize(request);tail=request.match_info['tail']
   if tail=='diagnostics' and request.method=='GET':
-   page=await self.browser();local=self.data/'diagnostics.js';return web.json_response(await page.evaluate((local if local.exists() else Path('/social/diagnostics.js')).read_text()))
+   page=await self.browser();local=self.data/'diagnostics.js';return web.json_response(await page.evaluate((local if local.exists() else (Path(__file__).resolve().parent / 'diagnostics.js')).read_text()))
   if tail=='self-message' and request.method=='POST':
    if P!='ok' or not self.account():raise web.HTTPNotFound()
    values=await request.json();key=values.get('idempotency_key');body=values.get('text')
