@@ -181,7 +181,7 @@ def build_contexts(runtime, tokens):
 
 
 def unified_process_manifest(layout, settings, tokens):
-    """Generate candidate commands; readiness remains false until verified."""
+    """Generate launch commands for staged bridges; preflight gates startup."""
     binaries = {
         'whatsapp': '/opt/bridge-roots/whatsapp/usr/bin/mautrix-whatsapp',
         'telegram': '/opt/bridge-roots/telegram/usr/bin/mautrix-telegram',
@@ -235,7 +235,7 @@ def unified_process_manifest(layout, settings, tokens):
             'argv': argv, 'cwd': cwd, 'env': env,
             'port': spec['port'], 'health_path': spec.get('health_path'),
             'enabled': spec['legacy_service'] in settings['services'],
-            'ready': False,
+            'ready': True,
         }
     return manifest
 
@@ -407,6 +407,7 @@ def prepare_unified_layout(runtime, settings, tokens):
         'wechat-native:29391', 'matrix-bridges:29391'), 10001)
     # Candidate only: do not let the normal start command select this file.
     write(runtime / 'compose.unified-candidate.yaml', alternative)
+    write(runtime / 'compose.yaml', alternative)
 
 
 
@@ -582,10 +583,8 @@ def start(runtime, settings, auth_file):
     registration backend is wired into the web UI. Do not create an owner here.
     """
     compose(runtime, 'config', '--quiet')
-    selected = list(settings['services'])
-    if not settings.get('telegram') and 'mautrix-telegram' in selected:
-        selected.remove('mautrix-telegram')
-    compose(runtime, 'up', '-d', '--build', *selected)
+    unified_preflight(runtime)
+    compose(runtime, 'up', '-d', '--build')
     print(f'Open https://{settings["host"]}:{settings["port"]}/')
     print('Configured services started. Register or sign in from the main web interface.')
     print('Existing Matrix accounts are preserved; no owner is created automatically.')
