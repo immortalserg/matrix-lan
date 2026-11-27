@@ -229,6 +229,8 @@ def unified_process_manifest(layout, settings, tokens):
                 '@db:5432/' + name + '?sslmode=disable')
         if name == 'imo':
             env['BRIDGE_STORAGE_DSN'] = env['BRIDGE_SQL_DSN']
+        if spec['legacy_service'] not in settings['services'] and name != 'signal':
+            continue
         manifest[name] = {
             'argv': argv, 'cwd': cwd, 'env': env,
             'port': spec['port'], 'health_path': spec.get('health_path'),
