@@ -61,28 +61,6 @@ fi
 IMAGE="matrix-lan-installer:local"
 docker build -t "$IMAGE" - < "$ROOT/Dockerfile.installer"
 
-# Administrative UI is deliberately restricted to the host loopback interface.
-if [[ "${1:-}" == "admin-start" || "${1:-}" == "admin-password" ]]; then
-  action="$1"
-  if [[ "$action" == "admin-start" ]]; then
-    docker run --rm --user 0:0 \
-      -v "$ROOT:$ROOT" -w "$ROOT" \
-      --entrypoint python3 "$IMAGE" "$ROOT/admin.py" admin-init
-    docker rm -f matrix-lan-admin >/dev/null 2>&1 || true
-    docker run -d --name matrix-lan-admin --restart unless-stopped \
-      --user 0:0 -p 127.0.0.1:18082:18082 \
-      -v /var/run/docker.sock:/var/run/docker.sock \
-      -v "$ROOT:$ROOT" -w "$ROOT" \
-      --entrypoint python3 "$IMAGE" "$ROOT/admin.py"
-    echo "Admin UI: http://localhost:18082/ (login: admin)"
-    echo "Get password: bash docker-install.sh admin-password"
-  else
-    docker run --rm --user 0:0 -v "$ROOT:$ROOT" -w "$ROOT" \
-      --entrypoint python3 "$IMAGE" "$ROOT/admin.py" admin-password
-  fi
-  exit 0
-fi
-
 # Socket access effectively grants root privileges on the Docker host.
 # Never expose this container or mount the socket into any runtime bridge.
 docker run --rm --user 0:0 \
@@ -93,10 +71,3 @@ docker run --rm --user 0:0 \
   "$IMAGE" "$ROOT/install.py" "$@"
 
 
-# Host-only controller: never install a root service from a writable checkout.
-if [[ "${1:-}" == "start" && $# -eq 1 && $EUID == 0 && -d /run/systemd/system ]]; then
-  if ! bash "$ROOT/services/controller/install-systemd.sh"; then
-    echo "Matrix-LAN started, but automatic bridge control is unavailable." >&2
-    echo "Use a trusted root-owned deployment tree (for example /opt/matrix-lan) and rerun start." >&2
-  fi
-fi
